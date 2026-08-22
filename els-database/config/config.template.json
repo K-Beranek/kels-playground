@@ -1,0 +1,24 @@
+{
+  "sqlServer": {
+    "host": "localhost",
+    "port": 1433,
+    "instanceName": "",
+    "database": "els_dev",
+    "encrypt": true,
+    "trustServerCertificate": true
+  },
+  "auth": {
+    "user": "sa",
+    "password": "CHANGE_ME"
+  },
+  "flyway": {
+    "schemas": {
+      "utils": {
+        "migrationsPath": "../migrations/utils"
+      },
+      "els": {
+        "migrationsPath": "../migrations/els"
+      }
+    }
+  }
+}

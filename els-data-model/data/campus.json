@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "name": "Riverside Main Campus",
+    "description": "The primary campus, offering the full course catalog across all departments."
+  },
+  {
+    "id": 2,
+    "name": "Downtown Extension",
+    "description": "A smaller satellite campus focused on evening and part-time courses."
+  },
+  {
+    "id": 3,
+    "name": "Online Campus",
+    "description": null
+  }
+]

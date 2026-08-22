@@ -1,0 +1,30 @@
+[
+  {
+    "campus_id": 1,
+    "id": 1,
+    "name": "Introduction to Programming",
+    "course_number": "CS101",
+    "description": "Fundamentals of programming using a high-level language."
+  },
+  {
+    "campus_id": 1,
+    "id": 2,
+    "name": "Database Systems",
+    "course_number": "CS210",
+    "description": "Relational modeling, SQL, and transaction fundamentals."
+  },
+  {
+    "campus_id": 2,
+    "id": 3,
+    "name": "Business Communication",
+    "course_number": "BUS110",
+    "description": null
+  },
+  {
+    "campus_id": 3,
+    "id": 4,
+    "name": "Data Engineering Foundations",
+    "course_number": "DE100",
+    "description": "ETL/ELT concepts, data lakes, and data warehousing basics."
+  }
+]

@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "eLearning System entity definition",
+  "description": "Validates one entity definition file under model/entities/. Each file describes a single table-like entity: its columns, types, keys, and constraints, in a form intended to be consumed later by a component that generates SQL DDL (and possibly other artifacts) for a specific target dialect.",
+  "type": "object",
+  "required": ["entity", "table", "columns"],
+  "additionalProperties": false,
+  "properties": {
+    "entity": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z0-9]*$",
+      "description": "Logical entity name, PascalCase singular (e.g. Campus)."
+    },
+    "table": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Physical table name, snake_case singular (e.g. campus)."
+    },
+    "comment": {
+      "type": "string",
+      "description": "Human-readable comment describing what this entity represents."
+    },
+    "columns": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/column" }
+    }
+  },
+  "$defs": {
+    "column": {
+      "type": "object",
+      "required": ["name", "type", "nullable"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Column name, snake_case."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["integer", "decimal", "string", "text", "boolean", "date", "datetime"],
+          "description": "Abstract, dialect-independent type. A future DDL-generation component maps each of these to a concrete type per target database."
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Optional max length, meaningful for type=string."
+        },
+        "nullable": {
+          "type": "boolean",
+          "description": "Whether the column allows NULL."
+        },
+        "primaryKey": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this column is (part of) the primary key. For composite keys, the order of primary-key columns in the columns array is the key's column order."
+        },
+        "unique": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this column has a standalone uniqueness constraint (in addition to, or instead of, being part of the primary key). Mutually exclusive with 'uniqueWith' on the same column — use this for a single-column constraint, 'uniqueWith' for a composite one."
+        },
+        "uniqueWith": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Names of other columns on this same entity that combine with this column to form a composite uniqueness constraint. E.g. [\"campus_id\"] on course_number generates UNIQUE (campus_id, course_number). Column order in the generated constraint is these names in the order listed, followed by this column. Mutually exclusive with 'unique' on the same column."
+        },
+        "identity": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this column is an auto-generated identity/sequence column (SQL Server IDENTITY). An identity column cannot be nullable."
+        },
+        "foreignKey": {
+          "type": "object",
+          "required": ["entity", "column"],
+          "additionalProperties": false,
+          "description": "Marks this column as a foreign key referencing another entity's column.",
+          "properties": {
+            "entity": { "type": "string", "description": "Referenced entity name, matching another file's \"entity\" value." },
+            "column": { "type": "string", "description": "Referenced column name within that entity." }
+          }
+        },
+        "comment": {
+          "type": "string",
+          "description": "Human-readable comment describing this column."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "identity": { "const": true } },
+            "required": ["identity"]
+          },
+          "then": {
+            "properties": { "nullable": { "const": false } }
+          }
+        },
+        {
+          "if": {
+            "required": ["uniqueWith"]
+          },
+          "then": {
+            "not": {
+              "properties": { "unique": { "const": true } },
+              "required": ["unique"]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

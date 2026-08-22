@@ -1,0 +1,5 @@
+# Only the template belongs in the repo. Every real config (with real server
+# names, credentials, etc.) must never be committed.
+*
+!.gitignore
+!config.template.json

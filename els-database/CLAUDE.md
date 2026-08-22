@@ -1,0 +1,60 @@
+# Notes for working in this component
+
+SQL Server database code: Flyway migrations, the tooling that runs them, and a schema-modeling working area. See the repo root `CLAUDE.md` for conventions that apply repo-wide.
+
+## Conventions specific to this component
+
+- One `migrations/<schema>` folder per database schema: `els` (domain schema, hand-written migrations, still just a placeholder) and `utils` (reusable tooling, currently the comment-setting procedures below).
+- Migration file naming follows Flyway's own rules exactly: `V<n>__<description>.sql` for versioned, `R__<description>.sql` for repeatable. Don't invent a different naming scheme here.
+- Neither schema has an explicit `CREATE SCHEMA` migration — both rely on Flyway's `createSchemas` setting (default `true`), which creates any schema named in `-schemas` that doesn't already exist before running its migrations. Don't add a `CREATE SCHEMA IF NOT EXISTS` migration "just in case" — it would be redundant with what Flyway already does automatically.
+- `full_db_model/current` is a reference snapshot, not something to hand-edit as part of normal work — it should reflect what's actually deployed. `full_db_model/wip` is scratch space; its contents are gitignored (`full_db_model/wip/.gitignore` keeps the folder itself tracked while ignoring everything inside it via `*` + `!.gitignore`).
+- `config/` ships only `config.template.json` in git (enforced by `config/.gitignore`, which ignores everything except `.gitignore` and `config.template.json` itself). Never add a real config filename to that allowlist.
+- `config.template.json`'s `flyway.schemas` is a dictionary keyed by schema name (`{"els": {"migrationsPath": "..."}, ...}`), not a single schema/path pair. Adding a new schema means adding a new key here, in step with adding `migrations/<schema>/`.
+- `scripts/Invoke-ElsMigration.ps1` reads connection details from a config file — it must never gain a hardcoded server/credential, and any new script added here should follow the same pattern (read from config, never embed secrets). It's run scoped to exactly one schema per invocation (`-Schema`, mandatory, no default) — never widen it to accept multiple schemas in one run; that would give the different schemas' migrations a single shared `flyway_schema_history`, defeating the point of running `utils` and `els` on independent cadences.
+
+## Script naming note
+
+`Invoke-ElsMigration.ps1` uses the approved PowerShell verb `Invoke` rather than `Deploy` — PowerShell enforces a fixed "approved verb" list (see `Get-Verb`) for scripts/functions meant to behave like cmdlets; using an unapproved verb triggers a warning if this is ever imported as a module function. Keep using approved verbs for new scripts in this folder (`Invoke-`, `New-`, `Get-`, `Test-`, etc.).
+
+## `migrations/utils/` (T-SQL)
+
+Reusable database tooling, not tied to the `els` domain schema. The comment-setting procedures follow a deliberate shape worth keeping if this schema grows further:
+
+- **One shared "engine" procedure, thin wrappers on top.** `utils.set_extended_property` does the real work (existence checks, add-vs-update decision); `utils.set_table_comment` and `utils.set_column_comment` just forward to it with a fixed `@column_name`. If a third kind of comment target ever shows up (e.g. a stored procedure's own extended property), add another thin wrapper rather than duplicating the engine's logic.
+- **`CREATE OR ALTER PROCEDURE`**, not a `DROP IF EXISTS` + `CREATE` pair — it's one statement, idempotent by construction, and reads clearly as "this is the current definition" on every repeatable-migration run.
+- **`THROW`, not `RAISERROR`**, for the two "does not exist" error paths — `THROW` is the modern syntax (SQL Server 2012+) and doesn't need a preceding `RAISERROR` message registered via `sp_addmessage`. Error numbers passed to `THROW` must be `>= 50000` (the user-defined range); `50000` itself is valid. `FORMATMESSAGE('...%s...', ...)` builds the message text inline, no message-catalog registration needed.
+- **Idempotency is the whole point** — every procedure here must produce the same end state whether it's the first time it's run against a given target or the hundredth, with no error either way (aside from genuinely bad input, like a table that doesn't exist). If you add a new `utils` procedure, ask "what happens on a second run with the same arguments?" before considering it done.
+- Numeric filename prefixes (`R__01_...`, `R__02_...`) are a human read-order hint, not a functional dependency — SQL Server's deferred name resolution means a procedure can reference another one that doesn't exist yet at `CREATE` time, only at execution time. Don't read the numbers as "must be deployed in this order."
+
+## `scripts/generate-full-schema/` (Python)
+
+Reads `els-data-model`'s entity JSON, validates it, and writes `full_db_model/wip/els_full_schema.sql` — schema DDL only, never touches seed data (a separate tool owns data imports). This is a real cross-component dependency: it reads `../../els-data-model/model/entities/*.json` and `.../model/schema/model.schema.json` via a relative path resolved from the script's own location, not a hardcoded absolute path. **Changing the shape of the entity JSON in `els-data-model` is a breaking change for this tool** — check it still runs (`--check` or a plain run) after editing `els-data-model`'s schema.
+
+**Comments are rendered as calls to `utils.set_table_comment`/`utils.set_column_comment`** (see `migrations/utils/` above), not raw `sys.sp_addextendedproperty`. This means the generated `els_full_schema.sql` now has a real prerequisite: the `utils` schema must already be deployed (`-Schema utils`) before the generated script is run, or every comment statement in it fails with the "table does not exist"-style errors those procedures throw for anything that isn't real yet — except here it'd actually be "procedure does not exist," since `utils` itself wouldn't be there. **Deliberately not guarded against in the generated script** (e.g. no `IF OBJECT_ID('utils.set_table_comment') IS NULL THROW ...` at the top) — this generator's job is to reflect the model's desired schema state, not to re-implement dependency/deployment-order checking that Flyway and this component's own docs (README/CLAUDE.md "prerequisite" notes) already cover. Keep it that way: if this starts feeling fragile, the fix is better deployment tooling/CI, not a hand-rolled guard clause inside generated SQL.
+
+Determinism is a hard, deliberately-tested requirement for this tool, not just a nice property: regenerating from an unchanged model must produce a byte-identical file, and adding a new entity/column must never reorder statements already in the file. If you touch this script, preserve that:
+
+- Keep sorting entities by name right after loading — don't switch to file-discovery order or insertion order.
+- Never introduce a timestamp, or anything else that varies run-to-run, into the generated file content (console output is fine).
+- Never use a Python `set()` for anything whose iteration order affects the output — hash randomization makes that non-deterministic across runs.
+- Keep the explicit `encoding="utf-8"` / `newline="\n"` on the output write.
+
+The `--check` flag exists specifically to verify this guarantee — it's a good thing to run after any change to the script or the model, and a natural fit for CI once this component has any.
+
+**Unique constraints** (`render_unique_constraints()`) support both `unique: true` (standalone) and `uniqueWith: [...]` (composite) per column, mutually exclusive on the same column. The mutual-exclusivity rule is enforced twice — the model's JSON Schema rejects it structurally, and this function re-checks it defensively — but a `uniqueWith` entry naming a nonexistent or self-referential column is checked *only* here, since JSON Schema has no practical way to cross-reference sibling array entries by name. If you add a new kind of cross-field reference to the model, ask whether JSON Schema can express it structurally first; if not, this is the pattern to follow — a clear `ValueError` naming the entity and column, not a bare `KeyError`.
+
+`main()` wraps both `load_entities()` and `generate_sql()` in the same `try`/`except (jsonschema.exceptions.ValidationError, FileNotFoundError, ValueError)` block — originally only `load_entities()` was wrapped, which meant a `ValueError` raised while *rendering* (e.g. the identity/nullable check in `render_column`, or the `uniqueWith` checks above) would produce a raw Python traceback instead of a clean `Error: ...` message. Keep both calls inside the same `try` if you add another rendering-time check.
+
+## Out of scope here
+
+Migrations under `migrations/els/` are still written by hand — `generate-full-schema` produces a full-state reference for comparison, it does not generate or edit actual Flyway migration files itself. That mapping (full-schema diff → next migration) is the still-undefined workflow mentioned above under `full_db_model`.
+
+## Verifying changes
+
+There's no CI for this component yet. Locally: `Invoke-ElsMigration.ps1 -Schema els -FlywayCommand info` (dry, no changes) is the fastest way to sanity-check that config and Flyway wiring still work before running an actual `migrate`. For the schema generator, `python generate_full_schema.py --check` confirms the generated file still matches the model.
+
+When the generator was switched to call `utils.set_table_comment`/`set_column_comment`, the full determinism regression suite was re-run, not just a visual diff of the new comment lines: ran twice back-to-back and MD5-matched the output, confirmed `--check` still reports "up to date," and re-ran the synthetic-entity insertion test (added a `Classroom` entity — including a column comment containing a `'`, to re-check escaping — between `Campus` and `Course` alphabetically, confirmed both existing tables' `CREATE TABLE` and comment statements stayed byte-for-byte unchanged, then removed it). Any future change to `render_comments()` should get the same treatment, per the "re-run the same regression suite" rule above.
+
+Same treatment again when `uniqueWith` (composite unique constraints) was added: byte-identical re-run, `--check`, and a synthetic `Classroom` entity with its own `uniqueWith` (`room_number` unique with `building_code`) confirming `Campus`/`Course` were untouched and the new composite constraint rendered correctly (`UNIQUE (building_code, room_number)`). Also exercised all three new error paths directly (temporary throwaway entity files, not committed): `unique: true` + `uniqueWith` together on one column, `uniqueWith` naming itself, and `uniqueWith` naming a column that doesn't exist — each produced a clean one-line `Error: ...` message, not a traceback.
+
+For `migrations/utils`, T-SQL syntax was checked with `sqlfluff parse --dialect tsql <file>` (no live SQL Server in this sandbox to actually execute against). Once you have a real SQL Server to test with, `-Schema utils` deploys them; a reasonable manual smoke test is: call `utils.set_table_comment` on a table that doesn't exist (expect the "does not exist" `THROW`), then on one that does (expect it added), then call it again with different text (expect it updated, not duplicated — check `sys.extended_properties` has exactly one `MS_Description` row for that table), then repeat all three for `utils.set_column_comment`.

@@ -1,0 +1,4 @@
+# Keep this folder present in the repo, but never commit its contents —
+# work-in-progress model drafts are local scratch, not source of truth.
+*
+!.gitignore
