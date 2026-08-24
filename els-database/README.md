@@ -17,7 +17,8 @@ els-database/
 │   └── (config.json, etc.)    Real, local-only configs — never committed
 └── scripts/
     ├── Invoke-ElsMigration.ps1     Runs Flyway against one schema's migrations using a local config file
-    └── generate-full-schema/       Python tool: els-data-model -> full_db_model/wip/*.sql
+    ├── generate-full-schema/       Python tool: els-data-model -> full_db_model/wip/*.sql
+    └── generate-synthetic-data/    Python tool: runs a folder of hand-written .sql files against a live database
 ```
 
 ### `full_db_model`
@@ -105,6 +106,14 @@ python generate_full_schema.py          # writes full_db_model/wip/els_full_sche
 python generate_full_schema.py --check  # exit non-zero if the model and the file have drifted apart
 ```
 
+`scripts/generate-synthetic-data/` is a separate Python tool for a different job: rather than deriving anything from `els-data-model`, it runs a folder of hand-written `.sql` files against a real database connection, in filename order, substituting three parameters (`--campus-code`, `--name`, `--complexity`) as `{campus_code}`/`{name}`/`{complexity}` placeholders into each file's text first. It stops at the first statement that fails, reporting the file name, the line number, and the database's own error text, and does no transaction management of its own — see [its own README](scripts/generate-synthetic-data/README.md) for the full placeholder/statement-splitting rules and the consequences of that no-rollback choice.
+
+```bash
+cd scripts/generate-synthetic-data
+pip install -r requirements.txt
+python generate_synthetic_data.py --campus-code MAIN2 --name "Second Main Campus" --complexity 100
+```
+
 ## Schema change workflow
 
 `full_db_model/wip` and `full_db_model/current` only earn their keep together: `wip` is always "what the model currently says the schema should be," `current` is always "what's actually deployed," and the gap between the two is exactly what a schema change needs to cover. The process for turning a model change into a deployed schema change is:
@@ -119,4 +128,4 @@ python generate_full_schema.py --check  # exit non-zero if the model and the fil
 
 ## Status
 
-Folder structure and tooling scaffolded. `utils` schema has its first real migrations (idempotent table/column comment procedures, see above). `els` schema still has no real migrations yet beyond the placeholder. See [`docs/els-database.md`](../docs/els-database.md) for the broader review/decisions log.
+Folder structure and tooling scaffolded. `utils` schema has its first real migrations (idempotent table/column comment procedures, see above). `els` schema still has no real migrations yet beyond the placeholder. `scripts/generate-synthetic-data/` exists with one placeholder/example `.sql` file — real data-generation scripts are still to be written. See [`docs/els-database.md`](../docs/els-database.md) for the broader review/decisions log.
