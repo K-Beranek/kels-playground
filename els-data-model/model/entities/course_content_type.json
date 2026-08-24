@@ -1,0 +1,35 @@
+{
+  "entity": "CourseContentType",
+  "table": "course_content_type",
+  "comment": "Lookup table of allowed course content types (e.g. Introduction, Lecture, Announcement).",
+  "columns": [
+    {
+      "name": "code",
+      "type": "string",
+      "length": 30,
+      "nullable": false,
+      "primaryKey": true,
+      "comment": "Stable, short, machine-facing code for the content type."
+    },
+    {
+      "name": "display_name",
+      "type": "string",
+      "length": 100,
+      "nullable": false,
+      "unique": true,
+      "comment": "Human-readable label for the content type."
+    },
+    {
+      "name": "sort_order",
+      "type": "integer",
+      "nullable": false,
+      "comment": "Explicit presentation order for this content type, independent of code or alphabetical order."
+    },
+    {
+      "name": "is_active",
+      "type": "boolean",
+      "nullable": false,
+      "comment": "Whether this content type is available for new selections. Retiring a value doesn't invalidate rows that already reference it."
+    }
+  ]
+}

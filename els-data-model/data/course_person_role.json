@@ -1,0 +1,20 @@
+[
+  {
+    "code": "STUDENT",
+    "display_name": "Student",
+    "sort_order": 1,
+    "is_active": true
+  },
+  {
+    "code": "INSTRUCTOR",
+    "display_name": "Instructor",
+    "sort_order": 2,
+    "is_active": true
+  },
+  {
+    "code": "OWNER",
+    "display_name": "Owner",
+    "sort_order": 3,
+    "is_active": true
+  }
+]

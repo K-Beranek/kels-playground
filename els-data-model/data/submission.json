@@ -1,0 +1,29 @@
+[
+  {
+    "campus_id": 1,
+    "course_person_id": 2,
+    "course_test_id": 1,
+    "id": 1,
+    "submission_text": "My answer to quiz 1.",
+    "attempt_number": 1,
+    "score": 85
+  },
+  {
+    "campus_id": 1,
+    "course_person_id": 2,
+    "course_test_id": 1,
+    "id": 2,
+    "submission_text": "Revised answer after reviewing feedback.",
+    "attempt_number": 2,
+    "score": 92
+  },
+  {
+    "campus_id": 3,
+    "course_person_id": 5,
+    "course_test_id": 4,
+    "id": 3,
+    "submission_text": null,
+    "attempt_number": 1,
+    "score": 15
+  }
+]

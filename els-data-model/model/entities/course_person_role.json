@@ -1,0 +1,35 @@
+{
+  "entity": "CoursePersonRole",
+  "table": "course_person_role",
+  "comment": "Lookup table of allowed roles a person can hold on a course (e.g. Student, Instructor, Owner).",
+  "columns": [
+    {
+      "name": "code",
+      "type": "string",
+      "length": 30,
+      "nullable": false,
+      "primaryKey": true,
+      "comment": "Stable, short, machine-facing code for the role."
+    },
+    {
+      "name": "display_name",
+      "type": "string",
+      "length": 100,
+      "nullable": false,
+      "unique": true,
+      "comment": "Human-readable label for the role."
+    },
+    {
+      "name": "sort_order",
+      "type": "integer",
+      "nullable": false,
+      "comment": "Explicit presentation order for this role, independent of code or alphabetical order."
+    },
+    {
+      "name": "is_active",
+      "type": "boolean",
+      "nullable": false,
+      "comment": "Whether this role is available for new selections. Retiring a value doesn't invalidate rows that already reference it."
+    }
+  ]
+}

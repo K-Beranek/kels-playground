@@ -1,0 +1,42 @@
+[
+  {
+    "campus_id": 1,
+    "course_id": 1,
+    "id": 1,
+    "code": "QUIZ1",
+    "active": true,
+    "test_questions": "Explain the difference between a variable and a loop, with an example of each.",
+    "possible_score": 100,
+    "required_score": 60
+  },
+  {
+    "campus_id": 1,
+    "course_id": 2,
+    "id": 2,
+    "code": "MIDTERM",
+    "active": true,
+    "test_questions": null,
+    "possible_score": 100,
+    "required_score": 70
+  },
+  {
+    "campus_id": 2,
+    "course_id": 3,
+    "id": 3,
+    "code": "FINAL",
+    "active": true,
+    "test_questions": "Write a one-page business memo announcing a policy change.",
+    "possible_score": 50,
+    "required_score": 30
+  },
+  {
+    "campus_id": 3,
+    "course_id": 4,
+    "id": 4,
+    "code": "QUIZ1",
+    "active": true,
+    "test_questions": null,
+    "possible_score": 20,
+    "required_score": 12
+  }
+]

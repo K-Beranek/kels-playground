@@ -1,0 +1,30 @@
+[
+  {
+    "campus_id": 1,
+    "id": 1,
+    "uuid": "9587d9c4-f428-4675-83e7-d5d369bb5e9a",
+    "first_name": "Emma",
+    "last_name": "Novak"
+  },
+  {
+    "campus_id": 1,
+    "id": 2,
+    "uuid": "37d9396e-85c7-46b8-9ef7-8d5ebb473159",
+    "first_name": "Liam",
+    "last_name": "Dvorak"
+  },
+  {
+    "campus_id": 2,
+    "id": 3,
+    "uuid": "85aa4d87-76b0-4f0d-8361-3b84b2e80196",
+    "first_name": "Sofia",
+    "last_name": "Kral"
+  },
+  {
+    "campus_id": 3,
+    "id": 4,
+    "uuid": "4b114a2b-1e33-41bf-aeed-b8a3ad3418cb",
+    "first_name": "Noah",
+    "last_name": "Prochazka"
+  }
+]

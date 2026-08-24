@@ -1,0 +1,38 @@
+[
+  {
+    "campus_id": 1,
+    "course_id": 1,
+    "content_type": "INTRODUCTION",
+    "id": 1,
+    "ordering_position": 1,
+    "active": true,
+    "document_text": "Welcome message shown at the top of the Introduction to Programming course page."
+  },
+  {
+    "campus_id": 1,
+    "course_id": 2,
+    "content_type": "LECTURE",
+    "id": 2,
+    "ordering_position": 2,
+    "active": true,
+    "document_text": null
+  },
+  {
+    "campus_id": 2,
+    "course_id": 3,
+    "content_type": "ANNOUNCEMENT",
+    "id": 3,
+    "ordering_position": 1,
+    "active": true,
+    "document_text": "Announcement about the upcoming Business Communication schedule."
+  },
+  {
+    "campus_id": 3,
+    "course_id": 4,
+    "content_type": "LECTURE",
+    "id": 4,
+    "ordering_position": 1,
+    "active": false,
+    "document_text": null
+  }
+]

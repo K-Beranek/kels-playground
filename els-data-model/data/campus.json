@@ -2,18 +2,21 @@
   {
     "id": 1,
     "uuid": "ccf02084-d3e6-41fb-b75d-c15063ef5fe5",
+    "code": "MAIN",
     "name": "Riverside Main Campus",
     "description": "The primary campus, offering the full course catalog across all departments."
   },
   {
     "id": 2,
     "uuid": "dc2c067e-94b2-4e16-918c-ce1f966c1268",
+    "code": "DOWNTOWN",
     "name": "Downtown Extension",
     "description": "A smaller satellite campus focused on evening and part-time courses."
   },
   {
     "id": 3,
     "uuid": "11e0ae8a-9051-437c-be65-fd452f051c61",
+    "code": "ONLINE",
     "name": "Online Campus",
     "description": null
   }

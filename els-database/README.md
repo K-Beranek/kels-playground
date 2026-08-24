@@ -24,7 +24,7 @@ els-database/
 
 Holds a full definition of the target schema, split into `current` (what's actually deployed — a reference point, not something edited by hand) and `wip` (drafts of the *next* change, before it's turned into a proper Flyway migration). `wip`'s contents are gitignored on purpose — the folder is tracked (via `wip/.gitignore` itself) so it exists in a fresh clone, but nothing dropped into it becomes part of the repo.
 
-`scripts/generate-full-schema/` writes `wip/els_full_schema.sql`: the full schema as `els-data-model` currently defines it, regenerated on demand. `current/` is still empty — it's meant to hold the schema as actually deployed, and there's nothing deployed yet. The full workflow (diff `wip` against `current` to work out what the next migration should contain) will be fleshed out once there's a real deployed schema to compare against.
+`scripts/generate-full-schema/` writes `wip/els_full_schema.sql`: the full schema as `els-data-model` currently defines it, regenerated on demand. `current/` is still empty — it's meant to hold the schema as actually deployed, and there's nothing deployed yet. See [Schema change workflow](#schema-change-workflow) below for how `wip` and `current` are meant to be used together once there is.
 
 ### `migrations/els`
 
@@ -104,6 +104,18 @@ pip install -r requirements.txt
 python generate_full_schema.py          # writes full_db_model/wip/els_full_schema.sql
 python generate_full_schema.py --check  # exit non-zero if the model and the file have drifted apart
 ```
+
+## Schema change workflow
+
+`full_db_model/wip` and `full_db_model/current` only earn their keep together: `wip` is always "what the model currently says the schema should be," `current` is always "what's actually deployed," and the gap between the two is exactly what a schema change needs to cover. The process for turning a model change into a deployed schema change is:
+
+1. Run `python generate_full_schema.py` to regenerate `wip/els_full_schema.sql` from the current state of `els-data-model`.
+2. Diff `wip/els_full_schema.sql` against `current/els_full_schema.sql` (a plain text diff) to see exactly what changed.
+3. Write a new versioned migration under `migrations/els/` (`V<n>__<description>.sql`) that produces that change. Some of it can be copied straight out of `wip` — a brand-new `CREATE TABLE` for a new entity, say — but anything touching an existing table has to be translated by hand into `ALTER TABLE ...` statements, since a live table with data in it can't just be dropped and recreated the way `wip` regenerates it from scratch. The generator does not do this translation; that step is entirely manual.
+4. Deploy the new migration (`Invoke-ElsMigration.ps1 -Schema els`) against a real database, fix whatever doesn't work, and repeat steps 3–4 until it deploys cleanly and the schema it produces is validated.
+5. Once validated, copy `wip/els_full_schema.sql` over `current/els_full_schema.sql`, replacing the previous snapshot. `current` now reflects the newly deployed state and is ready to be diffed against for the next change.
+
+`generate-full-schema`'s whole role in this workflow is step 1: producing the two files there are to compare. It has no opinion about how a diff should become a migration, and it never will — see [`CLAUDE.md`](CLAUDE.md#out-of-scope-here) for why that stays a manual step rather than something worth automating into the generator.
 
 ## Status
 

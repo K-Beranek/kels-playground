@@ -1,0 +1,20 @@
+[
+  {
+    "code": "INTRODUCTION",
+    "display_name": "Introduction",
+    "sort_order": 1,
+    "is_active": true
+  },
+  {
+    "code": "LECTURE",
+    "display_name": "Lecture",
+    "sort_order": 2,
+    "is_active": true
+  },
+  {
+    "code": "ANNOUNCEMENT",
+    "display_name": "Announcement",
+    "sort_order": 3,
+    "is_active": true
+  }
+]

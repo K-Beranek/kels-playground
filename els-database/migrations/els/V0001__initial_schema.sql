@@ -1,0 +1,316 @@
+------------------------------------------------------------------------------
+--  Lookup tables
+------------------------------------------------------------------------------
+CREATE TABLE els.curriculum_type (
+    code NVARCHAR(30) NOT NULL,
+    display_name NVARCHAR(100) NOT NULL,
+    sort_order INT NOT NULL,
+    is_active BIT NOT NULL,
+    CONSTRAINT PK_curriculum_type PRIMARY KEY (code),
+    CONSTRAINT UQ_curriculum_type_display_name UNIQUE (display_name)
+);
+
+EXEC utils.set_table_comment @schema_name = N'els', @table_name = N'curriculum_type', @comment = N'Lookup table of allowed curriculum types for a course within a term (e.g. Mandatory, Optional), driving selectable values in the GUI rather than a hardcoded list.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'curriculum_type', @column_name = N'code', @comment = N'Stable, short machine-readable code for this curriculum type (e.g. MANDATORY), used directly as the primary key -- see CourseType for the reasoning behind lookup tables keyed on their natural code.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'curriculum_type', @column_name = N'display_name', @comment = N'Human-readable label shown in the GUI for this curriculum type.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'curriculum_type', @column_name = N'sort_order', @comment = N'Determines display order in GUI lists (e.g. a dropdown), independent of code or alphabetical order.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'curriculum_type', @column_name = N'is_active', @comment = N'Whether this curriculum type is currently selectable for new term courses. A deactivated type stays valid for any existing row still referencing it; it just stops being offered as a choice for new ones.';
+
+CREATE TABLE els.semester_type (
+    code NVARCHAR(30) NOT NULL,
+    display_name NVARCHAR(100) NOT NULL,
+    sort_order INT NOT NULL,
+    is_active BIT NOT NULL,
+    CONSTRAINT PK_semester_type PRIMARY KEY (code),
+    CONSTRAINT UQ_semester_type_display_name UNIQUE (display_name)
+);
+
+EXEC utils.set_table_comment @schema_name = N'els', @table_name = N'semester_type', @comment = N'Lookup table of allowed semester types (e.g. Winter, Summer), driving selectable values in the GUI rather than a hardcoded list.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'semester_type', @column_name = N'code', @comment = N'Stable, short machine-readable code for this semester type (e.g. WINTER), used directly as the primary key -- see CourseType for the reasoning behind lookup tables keyed on their natural code.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'semester_type', @column_name = N'display_name', @comment = N'Human-readable label shown in the GUI for this semester type.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'semester_type', @column_name = N'sort_order', @comment = N'Determines display order in GUI lists (e.g. a dropdown), independent of code or alphabetical order.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'semester_type', @column_name = N'is_active', @comment = N'Whether this semester type is currently selectable for new semesters. A deactivated type stays valid for any existing row still referencing it; it just stops being offered as a choice for new ones.';
+
+CREATE TABLE els.course_type (
+    code NVARCHAR(30) NOT NULL,
+    display_name NVARCHAR(100) NOT NULL,
+    sort_order INT NOT NULL,
+    is_active BIT NOT NULL,
+    CONSTRAINT PK_course_type PRIMARY KEY (code),
+    CONSTRAINT UQ_course_type_display_name UNIQUE (display_name)
+);
+
+EXEC utils.set_table_comment @schema_name = N'els', @table_name = N'course_type', @comment = N'Lookup table of allowed course delivery types (e.g. Online, In Person), driving selectable values in the GUI rather than a hardcoded list.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_type', @column_name = N'code', @comment = N'Stable, short machine-readable code for this course type (e.g. IN_PERSON), used directly as the primary key since it''s already the natural identifier -- a separate surrogate id would just be a second, unused key alongside it.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_type', @column_name = N'display_name', @comment = N'Human-readable label shown in the GUI for this course type.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_type', @column_name = N'sort_order', @comment = N'Determines display order in GUI lists (e.g. a dropdown), independent of code or alphabetical order.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_type', @column_name = N'is_active', @comment = N'Whether this course type is currently selectable for new courses. A deactivated type stays valid for any existing row still referencing it; it just stops being offered as a choice for new ones.';
+
+CREATE TABLE els.course_content_type (
+    code NVARCHAR(30) NOT NULL,
+    display_name NVARCHAR(100) NOT NULL,
+    sort_order INT NOT NULL,
+    is_active BIT NOT NULL,
+    CONSTRAINT PK_course_content_type PRIMARY KEY (code),
+    CONSTRAINT UQ_course_content_type_display_name UNIQUE (display_name)
+);
+
+EXEC utils.set_table_comment @schema_name = N'els', @table_name = N'course_content_type', @comment = N'Lookup table of allowed course content types (e.g. Introduction, Lecture, Announcement).';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_content_type', @column_name = N'code', @comment = N'Stable, short, machine-facing code for the content type.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_content_type', @column_name = N'display_name', @comment = N'Human-readable label for the content type.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_content_type', @column_name = N'sort_order', @comment = N'Explicit presentation order for this content type, independent of code or alphabetical order.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_content_type', @column_name = N'is_active', @comment = N'Whether this content type is available for new selections. Retiring a value doesn''t invalidate rows that already reference it.';
+
+CREATE TABLE els.course_person_role (
+    code NVARCHAR(30) NOT NULL,
+    display_name NVARCHAR(100) NOT NULL,
+    sort_order INT NOT NULL,
+    is_active BIT NOT NULL,
+    CONSTRAINT PK_course_person_role PRIMARY KEY (code),
+    CONSTRAINT UQ_course_person_role_display_name UNIQUE (display_name)
+);
+
+EXEC utils.set_table_comment @schema_name = N'els', @table_name = N'course_person_role', @comment = N'Lookup table of allowed roles a person can hold on a course (e.g. Student, Instructor, Owner).';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_person_role', @column_name = N'code', @comment = N'Stable, short, machine-facing code for the role.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_person_role', @column_name = N'display_name', @comment = N'Human-readable label for the role.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_person_role', @column_name = N'sort_order', @comment = N'Explicit presentation order for this role, independent of code or alphabetical order.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_person_role', @column_name = N'is_active', @comment = N'Whether this role is available for new selections. Retiring a value doesn''t invalidate rows that already reference it.';
+
+------------------------------------------------------------------------------
+--  Regular Entity tables
+------------------------------------------------------------------------------
+CREATE TABLE els.campus (
+    id INT IDENTITY(1,1) NOT NULL,
+    uuid NVARCHAR(36) NOT NULL,
+    code NVARCHAR(20) NOT NULL,
+    name NVARCHAR(200) NOT NULL,
+    description NVARCHAR(MAX) NULL,
+    CONSTRAINT PK_campus PRIMARY KEY (id),
+    CONSTRAINT UQ_campus_uuid UNIQUE (uuid),
+    CONSTRAINT UQ_campus_code UNIQUE (code)
+);
+
+EXEC utils.set_table_comment @schema_name = N'els', @table_name = N'campus', @comment = N'A physical or virtual location where courses are offered.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'campus', @column_name = N'id', @comment = N'Surrogate identifier for the campus, auto-generated by the database.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'campus', @column_name = N'uuid', @comment = N'Stable external identifier for the campus (e.g. for APIs/integrations), independent of the internal auto-generated id.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'campus', @column_name = N'code', @comment = N'Short, human-memorable static code for the campus, unique system-wide -- unlike id (not static) or uuid (unique but not memorable).';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'campus', @column_name = N'name', @comment = N'Display name of the campus.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'campus', @column_name = N'description', @comment = N'Optional free-text description of the campus.';
+
+CREATE TABLE els.semester (
+    campus_id INT NOT NULL,
+    semester_type NVARCHAR(30) NOT NULL,
+    id INT IDENTITY(1,1) NOT NULL,
+    academic_year INT NOT NULL,
+    code NVARCHAR(50) NOT NULL,
+    CONSTRAINT PK_semester PRIMARY KEY (id),
+    CONSTRAINT UQ_semester_code UNIQUE (campus_id, code)
+);
+
+ALTER TABLE els.semester ADD CONSTRAINT FK_semester_campus_id FOREIGN KEY (campus_id) REFERENCES els.campus (id);
+ALTER TABLE els.semester ADD CONSTRAINT FK_semester_semester_type FOREIGN KEY (semester_type) REFERENCES els.semester_type (code);
+
+EXEC utils.set_table_comment @schema_name = N'els', @table_name = N'semester', @comment = N'A specific semester (a semester type within an academic year) at a campus.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'semester', @column_name = N'campus_id', @comment = N'Campus this semester belongs to.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'semester', @column_name = N'semester_type', @comment = N'Which semester type this is (e.g. Winter, Summer) -- references semester_type.code.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'semester', @column_name = N'id', @comment = N'Surrogate identifier for the semester, auto-generated by the database and unique across the whole system.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'semester', @column_name = N'academic_year', @comment = N'Academic year this semester falls in (e.g. 2026).';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'semester', @column_name = N'code', @comment = N'Human-readable semester code, unique within its campus (the same code may be reused at a different campus).';
+
+CREATE TABLE els.study_program (
+    campus_id INT NOT NULL,
+    id INT IDENTITY(1,1) NOT NULL,
+    code NVARCHAR(50) NOT NULL,
+    name NVARCHAR(200) NOT NULL,
+    description NVARCHAR(MAX) NULL,
+    CONSTRAINT PK_study_program PRIMARY KEY (id),
+    CONSTRAINT UQ_study_program_code UNIQUE (campus_id, code)
+);
+
+ALTER TABLE els.study_program ADD CONSTRAINT FK_study_program_campus_id FOREIGN KEY (campus_id) REFERENCES els.campus (id);
+
+EXEC utils.set_table_comment @schema_name = N'els', @table_name = N'study_program', @comment = N'A program of study offered at a campus (e.g. a degree or certificate track).';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'study_program', @column_name = N'campus_id', @comment = N'Campus this study program is offered at.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'study_program', @column_name = N'id', @comment = N'Surrogate identifier for the study program, auto-generated by the database and unique across the whole system.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'study_program', @column_name = N'code', @comment = N'Human-readable program code, unique within its campus (the same code may be reused at a different campus).';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'study_program', @column_name = N'name', @comment = N'Display name of the study program.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'study_program', @column_name = N'description', @comment = N'Optional free-text description of the study program.';
+
+CREATE TABLE els.term (
+    campus_id INT NOT NULL,
+    study_program_id INT NOT NULL,
+    semester_id INT NOT NULL,
+    id INT IDENTITY(1,1) NOT NULL,
+    CONSTRAINT PK_term PRIMARY KEY (id),
+    CONSTRAINT UQ_term_semester_id UNIQUE (campus_id, study_program_id, semester_id)
+);
+
+ALTER TABLE els.term ADD CONSTRAINT FK_term_campus_id FOREIGN KEY (campus_id) REFERENCES els.campus (id);
+ALTER TABLE els.term ADD CONSTRAINT FK_term_study_program_id FOREIGN KEY (study_program_id) REFERENCES els.study_program (id);
+ALTER TABLE els.term ADD CONSTRAINT FK_term_semester_id FOREIGN KEY (semester_id) REFERENCES els.semester (id);
+
+EXEC utils.set_table_comment @schema_name = N'els', @table_name = N'term', @comment = N'A specific offering of a study program during a semester at a campus -- the thing courses actually get scheduled into.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'term', @column_name = N'campus_id', @comment = N'Campus this term belongs to.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'term', @column_name = N'study_program_id', @comment = N'Study program this term is an offering of.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'term', @column_name = N'semester_id', @comment = N'Semester this term runs in. Unique together with campus_id and study_program_id: a study program can''t have two terms in the same semester at the same campus.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'term', @column_name = N'id', @comment = N'Surrogate identifier for the term, auto-generated by the database and unique across the whole system.';
+
+CREATE TABLE els.person (
+    campus_id INT NOT NULL,
+    id INT IDENTITY(1,1) NOT NULL,
+    uuid NVARCHAR(36) NOT NULL,
+    first_name NVARCHAR(100) NOT NULL,
+    last_name NVARCHAR(100) NOT NULL,
+    CONSTRAINT PK_person PRIMARY KEY (id),
+    CONSTRAINT UQ_person_uuid UNIQUE (uuid)
+);
+
+ALTER TABLE els.person ADD CONSTRAINT FK_person_campus_id FOREIGN KEY (campus_id) REFERENCES els.campus (id);
+
+EXEC utils.set_table_comment @schema_name = N'els', @table_name = N'person', @comment = N'A person known to the system -- may hold one or more course roles (student, instructor, owner) via CoursePerson.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'person', @column_name = N'campus_id', @comment = N'Campus this person belongs to.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'person', @column_name = N'id', @comment = N'Surrogate identifier for the person, auto-generated by the database and unique across the whole system.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'person', @column_name = N'uuid', @comment = N'Stable external identifier for the person (e.g. for APIs/integrations), independent of the internal auto-generated id.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'person', @column_name = N'first_name', @comment = N'Person''s first name.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'person', @column_name = N'last_name', @comment = N'Person''s last name.';
+
+CREATE TABLE els.course (
+    campus_id INT NOT NULL,
+    course_type NVARCHAR(30) NOT NULL,
+    id INT IDENTITY(1,1) NOT NULL,
+    name NVARCHAR(200) NOT NULL,
+    course_number NVARCHAR(50) NOT NULL,
+    description NVARCHAR(MAX) NULL,
+    CONSTRAINT PK_course PRIMARY KEY (id),
+    CONSTRAINT UQ_course_course_number UNIQUE (campus_id, course_number)
+);
+
+ALTER TABLE els.course ADD CONSTRAINT FK_course_campus_id FOREIGN KEY (campus_id) REFERENCES els.campus (id);
+ALTER TABLE els.course ADD CONSTRAINT FK_course_course_type FOREIGN KEY (course_type) REFERENCES els.course_type (code);
+
+EXEC utils.set_table_comment @schema_name = N'els', @table_name = N'course', @comment = N'A course offered at a specific campus.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course', @column_name = N'campus_id', @comment = N'Campus this course is offered at.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course', @column_name = N'course_type', @comment = N'How this course is delivered (e.g. In Person, Online) -- references course_type.code.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course', @column_name = N'id', @comment = N'Surrogate identifier for the course, auto-generated by the database and unique across the whole system.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course', @column_name = N'name', @comment = N'Display name of the course.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course', @column_name = N'course_number', @comment = N'Human-readable course code, unique within its campus (the same code may be reused at a different campus).';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course', @column_name = N'description', @comment = N'Optional free-text description of the course.';
+
+CREATE TABLE els.term_course (
+    campus_id INT NOT NULL,
+    term_id INT NOT NULL,
+    course_id INT NOT NULL,
+    curriculum_type NVARCHAR(30) NOT NULL,
+    id INT IDENTITY(1,1) NOT NULL,
+    CONSTRAINT PK_term_course PRIMARY KEY (id),
+    CONSTRAINT UQ_term_course_course_id UNIQUE (campus_id, term_id, course_id)
+);
+
+ALTER TABLE els.term_course ADD CONSTRAINT FK_term_course_campus_id FOREIGN KEY (campus_id) REFERENCES els.campus (id);
+ALTER TABLE els.term_course ADD CONSTRAINT FK_term_course_term_id FOREIGN KEY (term_id) REFERENCES els.term (id);
+ALTER TABLE els.term_course ADD CONSTRAINT FK_term_course_course_id FOREIGN KEY (course_id) REFERENCES els.course (id);
+ALTER TABLE els.term_course ADD CONSTRAINT FK_term_course_curriculum_type FOREIGN KEY (curriculum_type) REFERENCES els.curriculum_type (code);
+
+EXEC utils.set_table_comment @schema_name = N'els', @table_name = N'term_course', @comment = N'A course scheduled within a specific term, with a curriculum type (e.g. Mandatory, Optional) for that term.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'term_course', @column_name = N'campus_id', @comment = N'Campus this term course belongs to.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'term_course', @column_name = N'term_id', @comment = N'Term this course is scheduled into.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'term_course', @column_name = N'course_id', @comment = N'Course being scheduled. Unique together with campus_id and term_id: the same course can''t be scheduled twice into the same term.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'term_course', @column_name = N'curriculum_type', @comment = N'Whether this course is mandatory or optional within the term -- references curriculum_type.code.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'term_course', @column_name = N'id', @comment = N'Surrogate identifier for the term course, auto-generated by the database and unique across the whole system.';
+
+CREATE TABLE els.course_person (
+    campus_id INT NOT NULL,
+    course_id INT NOT NULL,
+    person_id INT NOT NULL,
+    course_role NVARCHAR(30) NOT NULL,
+    id INT IDENTITY(1,1) NOT NULL,
+    CONSTRAINT PK_course_person PRIMARY KEY (id),
+    CONSTRAINT UQ_course_person_person_id UNIQUE (campus_id, course_id, person_id)
+);
+
+ALTER TABLE els.course_person ADD CONSTRAINT FK_course_person_campus_id FOREIGN KEY (campus_id) REFERENCES els.campus (id);
+ALTER TABLE els.course_person ADD CONSTRAINT FK_course_person_course_id FOREIGN KEY (course_id) REFERENCES els.course (id);
+ALTER TABLE els.course_person ADD CONSTRAINT FK_course_person_person_id FOREIGN KEY (person_id) REFERENCES els.person (id);
+ALTER TABLE els.course_person ADD CONSTRAINT FK_course_person_course_role FOREIGN KEY (course_role) REFERENCES els.course_person_role (code);
+
+EXEC utils.set_table_comment @schema_name = N'els', @table_name = N'course_person', @comment = N'A person''s role (student, instructor, owner) on a course.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_person', @column_name = N'campus_id', @comment = N'Campus this course person belongs to.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_person', @column_name = N'course_id', @comment = N'Course this role applies to.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_person', @column_name = N'person_id', @comment = N'Person holding this role. Unique together with campus_id and course_id: the same person can''t be given the same role assignment on the same course twice.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_person', @column_name = N'course_role', @comment = N'Role this person holds on the course (e.g. Student, Instructor, Owner) -- references course_person_role.code.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_person', @column_name = N'id', @comment = N'Surrogate identifier for the course person, auto-generated by the database and unique across the whole system.';
+
+CREATE TABLE els.course_content (
+    campus_id INT NOT NULL,
+    course_id INT NOT NULL,
+    content_type NVARCHAR(30) NOT NULL,
+    id INT IDENTITY(1,1) NOT NULL,
+    ordering_position INT NOT NULL,
+    active BIT NOT NULL,
+    document_text NVARCHAR(4000) NULL,
+    CONSTRAINT PK_course_content PRIMARY KEY (id)
+);
+
+ALTER TABLE els.course_content ADD CONSTRAINT FK_course_content_campus_id FOREIGN KEY (campus_id) REFERENCES els.campus (id);
+ALTER TABLE els.course_content ADD CONSTRAINT FK_course_content_course_id FOREIGN KEY (course_id) REFERENCES els.course (id);
+ALTER TABLE els.course_content ADD CONSTRAINT FK_course_content_content_type FOREIGN KEY (content_type) REFERENCES els.course_content_type (code);
+
+EXEC utils.set_table_comment @schema_name = N'els', @table_name = N'course_content', @comment = N'A piece of content (introduction, lecture, announcement, ...) belonging to a course.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_content', @column_name = N'campus_id', @comment = N'Campus this course content belongs to.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_content', @column_name = N'course_id', @comment = N'Course this content item belongs to.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_content', @column_name = N'content_type', @comment = N'Kind of content this is (e.g. Introduction, Lecture, Announcement) -- references course_content_type.code.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_content', @column_name = N'id', @comment = N'Surrogate identifier for the course content, auto-generated by the database and unique across the whole system.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_content', @column_name = N'ordering_position', @comment = N'Explicit display order of this content item, independent of id or content_type.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_content', @column_name = N'active', @comment = N'Whether this content item is currently shown.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_content', @column_name = N'document_text', @comment = N'Optional body text for this content item, capped at 4000 characters (SQL Server''s largest non-MAX NVARCHAR size) rather than using the unbounded text type.';
+
+CREATE TABLE els.course_test (
+    campus_id INT NOT NULL,
+    course_id INT NOT NULL,
+    id INT IDENTITY(1,1) NOT NULL,
+    code NVARCHAR(50) NOT NULL,
+    active BIT NOT NULL,
+    test_questions NVARCHAR(4000) NULL,
+    possible_score INT NOT NULL,
+    required_score INT NOT NULL,
+    CONSTRAINT PK_course_test PRIMARY KEY (id),
+    CONSTRAINT UQ_course_test_code UNIQUE (course_id, code)
+);
+
+ALTER TABLE els.course_test ADD CONSTRAINT FK_course_test_campus_id FOREIGN KEY (campus_id) REFERENCES els.campus (id);
+ALTER TABLE els.course_test ADD CONSTRAINT FK_course_test_course_id FOREIGN KEY (course_id) REFERENCES els.course (id);
+
+EXEC utils.set_table_comment @schema_name = N'els', @table_name = N'course_test', @comment = N'A test (quiz/exam) belonging to a course, with a possible and required score.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_test', @column_name = N'campus_id', @comment = N'Campus this course test belongs to.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_test', @column_name = N'course_id', @comment = N'Course this test belongs to.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_test', @column_name = N'id', @comment = N'Surrogate identifier for the course test, auto-generated by the database and unique across the whole system.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_test', @column_name = N'code', @comment = N'Human-readable test code, unique within its course (the same code may be reused on a different course).';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_test', @column_name = N'active', @comment = N'Whether this test is currently open/available.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_test', @column_name = N'test_questions', @comment = N'Optional test question text, capped at 4000 characters (SQL Server''s largest non-MAX NVARCHAR size) rather than using the unbounded text type.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_test', @column_name = N'possible_score', @comment = N'Maximum score achievable on this test.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'course_test', @column_name = N'required_score', @comment = N'Minimum score required to pass this test.';
+
+CREATE TABLE els.submission (
+    campus_id INT NOT NULL,
+    course_person_id INT NOT NULL,
+    course_test_id INT NOT NULL,
+    id INT IDENTITY(1,1) NOT NULL,
+    submission_text NVARCHAR(4000) NULL,
+    attempt_number INT NOT NULL,
+    score INT NOT NULL,
+    CONSTRAINT PK_submission PRIMARY KEY (id),
+    CONSTRAINT UQ_submission_attempt_number UNIQUE (campus_id, course_person_id, course_test_id, attempt_number)
+);
+
+ALTER TABLE els.submission ADD CONSTRAINT FK_submission_campus_id FOREIGN KEY (campus_id) REFERENCES els.campus (id);
+ALTER TABLE els.submission ADD CONSTRAINT FK_submission_course_person_id FOREIGN KEY (course_person_id) REFERENCES els.course_person (id);
+ALTER TABLE els.submission ADD CONSTRAINT FK_submission_course_test_id FOREIGN KEY (course_test_id) REFERENCES els.course_test (id);
+
+EXEC utils.set_table_comment @schema_name = N'els', @table_name = N'submission', @comment = N'A person''s attempt at a course test.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'submission', @column_name = N'campus_id', @comment = N'Campus this submission belongs to.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'submission', @column_name = N'course_person_id', @comment = N'The course-person (person + course + role) this submission was made by.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'submission', @column_name = N'course_test_id', @comment = N'The test this submission is an attempt at. The course referenced by course_person_id and the course referenced by course_test_id must be the same course; that rule is not enforced at the database level, only expected of the data.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'submission', @column_name = N'id', @comment = N'Surrogate identifier for the submission, auto-generated by the database and unique across the whole system.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'submission', @column_name = N'submission_text', @comment = N'Optional submitted answer text, capped at 4000 characters (SQL Server''s largest non-MAX NVARCHAR size) rather than using the unbounded text type.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'submission', @column_name = N'attempt_number', @comment = N'Which attempt this is for this course-person on this test (1st, 2nd, ...). Unique together with campus_id, course_person_id, and course_test_id: the same attempt number can''t be recorded twice for the same course-person/test.';
+EXEC utils.set_column_comment @schema_name = N'els', @table_name = N'submission', @column_name = N'score', @comment = N'Score achieved on this attempt.';

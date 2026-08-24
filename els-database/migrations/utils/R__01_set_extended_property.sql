@@ -32,6 +32,7 @@ BEGIN
     SET NOCOUNT ON;
 
     DECLARE @object_id INT = OBJECT_ID(QUOTENAME(@schema_name) + N'.' + QUOTENAME(@table_name));
+    DECLARE @comment_as_variant SQL_VARIANT = CAST(CAST(@comment AS NVARCHAR(4000)) AS SQL_VARIANT)
 
     IF @object_id IS NULL
     BEGIN
@@ -75,7 +76,7 @@ BEGIN
     BEGIN
         EXEC sys.sp_updateextendedproperty
             @name       = N'MS_Description',
-            @value      = @comment,
+            @value      = @comment_as_variant,
             @level0type = N'SCHEMA', @level0name = @schema_name,
             @level1type = N'TABLE',  @level1name = @table_name,
             @level2type = @level2type, @level2name = @level2name;
@@ -84,7 +85,7 @@ BEGIN
     BEGIN
         EXEC sys.sp_addextendedproperty
             @name       = N'MS_Description',
-            @value      = @comment,
+            @value      = @comment_as_variant,
             @level0type = N'SCHEMA', @level0name = @schema_name,
             @level1type = N'TABLE',  @level1name = @table_name,
             @level2type = @level2type, @level2name = @level2name;
