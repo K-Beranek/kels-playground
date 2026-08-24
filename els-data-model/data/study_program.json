@@ -1,0 +1,30 @@
+[
+  {
+    "campus_id": 1,
+    "id": 1,
+    "code": "CS-BSC",
+    "name": "B.Sc. Computer Science",
+    "description": "Undergraduate program covering programming, algorithms, and systems."
+  },
+  {
+    "campus_id": 1,
+    "id": 2,
+    "code": "BUS-BSC",
+    "name": "B.Sc. Business Administration",
+    "description": null
+  },
+  {
+    "campus_id": 2,
+    "id": 3,
+    "code": "BUS-CERT",
+    "name": "Business Communication Certificate",
+    "description": "A short certificate program in professional business communication."
+  },
+  {
+    "campus_id": 3,
+    "id": 4,
+    "code": "DE-CERT",
+    "name": "Data Engineering Certificate",
+    "description": "An online certificate program in data engineering fundamentals."
+  }
+]

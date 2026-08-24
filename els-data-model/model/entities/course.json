@@ -11,6 +11,14 @@
       "comment": "Campus this course is offered at."
     },
     {
+      "name": "course_type",
+      "type": "string",
+      "length": 30,
+      "nullable": false,
+      "foreignKey": { "entity": "CourseType", "column": "code" },
+      "comment": "How this course is delivered (e.g. In Person, Online) -- references course_type.code."
+    },
+    {
       "name": "id",
       "type": "integer",
       "nullable": false,

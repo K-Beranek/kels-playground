@@ -1,0 +1,35 @@
+{
+  "entity": "SemesterType",
+  "table": "semester_type",
+  "comment": "Lookup table of allowed semester types (e.g. Winter, Summer), driving selectable values in the GUI rather than a hardcoded list.",
+  "columns": [
+    {
+      "name": "code",
+      "type": "string",
+      "length": 30,
+      "nullable": false,
+      "primaryKey": true,
+      "comment": "Stable, short machine-readable code for this semester type (e.g. WINTER), used directly as the primary key -- see CourseType for the reasoning behind lookup tables keyed on their natural code."
+    },
+    {
+      "name": "display_name",
+      "type": "string",
+      "length": 100,
+      "nullable": false,
+      "unique": true,
+      "comment": "Human-readable label shown in the GUI for this semester type."
+    },
+    {
+      "name": "sort_order",
+      "type": "integer",
+      "nullable": false,
+      "comment": "Determines display order in GUI lists (e.g. a dropdown), independent of code or alphabetical order."
+    },
+    {
+      "name": "is_active",
+      "type": "boolean",
+      "nullable": false,
+      "comment": "Whether this semester type is currently selectable for new semesters. A deactivated type stays valid for any existing row still referencing it; it just stops being offered as a choice for new ones."
+    }
+  ]
+}

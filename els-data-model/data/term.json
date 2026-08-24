@@ -1,0 +1,6 @@
+[
+  { "campus_id": 1, "study_program_id": 1, "semester_id": 1, "id": 1 },
+  { "campus_id": 1, "study_program_id": 2, "semester_id": 2, "id": 2 },
+  { "campus_id": 2, "study_program_id": 3, "semester_id": 3, "id": 3 },
+  { "campus_id": 3, "study_program_id": 4, "semester_id": 4, "id": 4 }
+]

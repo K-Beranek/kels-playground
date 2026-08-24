@@ -1,0 +1,4 @@
+[
+  { "code": "MANDATORY", "display_name": "Mandatory", "sort_order": 1, "is_active": true },
+  { "code": "OPTIONAL", "display_name": "Optional", "sort_order": 2, "is_active": true }
+]

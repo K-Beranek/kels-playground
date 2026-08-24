@@ -1,0 +1,4 @@
+[
+  { "code": "WINTER", "display_name": "Winter", "sort_order": 1, "is_active": true },
+  { "code": "SUMMER", "display_name": "Summer", "sort_order": 2, "is_active": true }
+]

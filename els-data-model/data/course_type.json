@@ -1,0 +1,26 @@
+[
+  {
+    "code": "IN_PERSON",
+    "display_name": "In Person",
+    "sort_order": 1,
+    "is_active": true
+  },
+  {
+    "code": "ONLINE",
+    "display_name": "Online",
+    "sort_order": 2,
+    "is_active": true
+  },
+  {
+    "code": "HYBRID",
+    "display_name": "Hybrid",
+    "sort_order": 3,
+    "is_active": true
+  },
+  {
+    "code": "NA",
+    "display_name": "N/A",
+    "sort_order": 4,
+    "is_active": true
+  }
+]

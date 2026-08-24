@@ -1,0 +1,6 @@
+[
+  { "campus_id": 1, "term_id": 1, "course_id": 1, "curriculum_type": "MANDATORY", "id": 1 },
+  { "campus_id": 1, "term_id": 1, "course_id": 2, "curriculum_type": "OPTIONAL", "id": 2 },
+  { "campus_id": 2, "term_id": 3, "course_id": 3, "curriculum_type": "MANDATORY", "id": 3 },
+  { "campus_id": 3, "term_id": 4, "course_id": 4, "curriculum_type": "MANDATORY", "id": 4 }
+]

@@ -1,6 +1,7 @@
 [
   {
     "campus_id": 1,
+    "course_type": "IN_PERSON",
     "id": 1,
     "name": "Introduction to Programming",
     "course_number": "CS101",
@@ -8,6 +9,7 @@
   },
   {
     "campus_id": 1,
+    "course_type": "HYBRID",
     "id": 2,
     "name": "Database Systems",
     "course_number": "CS210",
@@ -15,6 +17,7 @@
   },
   {
     "campus_id": 2,
+    "course_type": "IN_PERSON",
     "id": 3,
     "name": "Business Communication",
     "course_number": "BUS110",
@@ -22,6 +25,7 @@
   },
   {
     "campus_id": 3,
+    "course_type": "ONLINE",
     "id": 4,
     "name": "Data Engineering Foundations",
     "course_number": "DE100",

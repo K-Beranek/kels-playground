@@ -1,0 +1,30 @@
+[
+  {
+    "campus_id": 1,
+    "semester_type": "WINTER",
+    "id": 1,
+    "academic_year": 2026,
+    "code": "2026-WIN"
+  },
+  {
+    "campus_id": 1,
+    "semester_type": "SUMMER",
+    "id": 2,
+    "academic_year": 2026,
+    "code": "2026-SUM"
+  },
+  {
+    "campus_id": 2,
+    "semester_type": "WINTER",
+    "id": 3,
+    "academic_year": 2026,
+    "code": "2026-WIN"
+  },
+  {
+    "campus_id": 3,
+    "semester_type": "SUMMER",
+    "id": 4,
+    "academic_year": 2026,
+    "code": "2026-SUM"
+  }
+]
