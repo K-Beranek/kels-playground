@@ -231,9 +231,12 @@ A person's attempt at a course test.
 | course_person_id | integer | no | foreign key → CoursePerson.id |
 | course_test_id | integer | no | foreign key → CourseTest.id |
 | id | integer | no | primary key, identity |
+| submitted_time | datetime | no | |
 | submission_text | string(4000) | yes | |
 | attempt_number | integer | no | unique with campus_id/course_person_id/course_test_id |
 | score | integer | no | |
+
+`submitted_time` is the model's first real use of the abstract `datetime` type (added to `model.schema.json` alongside `date` early on, but unused by any entity until now) — it renders as SQL Server `DATETIME2` in the generated schema. `date` (calendar date only, no time-of-day) remains unused so far.
 
 `attempt_number` is unique together with `campus_id`, `course_person_id`, and `course_test_id` — the same attempt number can't be recorded twice for the same course-person/test pair, while still allowing multiple attempts (`1`, `2`, ...) at the same test.
 

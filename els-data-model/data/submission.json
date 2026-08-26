@@ -4,6 +4,7 @@
     "course_person_id": 2,
     "course_test_id": 1,
     "id": 1,
+    "submitted_time": "2026-02-10T14:32:00",
     "submission_text": "My answer to quiz 1.",
     "attempt_number": 1,
     "score": 85
@@ -13,6 +14,7 @@
     "course_person_id": 2,
     "course_test_id": 1,
     "id": 2,
+    "submitted_time": "2026-02-11T09:05:00",
     "submission_text": "Revised answer after reviewing feedback.",
     "attempt_number": 2,
     "score": 92
@@ -22,6 +24,7 @@
     "course_person_id": 5,
     "course_test_id": 4,
     "id": 3,
+    "submitted_time": "2026-02-12T16:47:00",
     "submission_text": null,
     "attempt_number": 1,
     "score": 15
