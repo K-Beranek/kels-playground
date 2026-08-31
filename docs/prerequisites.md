@@ -56,5 +56,31 @@ This downloads `Flyway_Desktop.exe`. It contains both the GUI and CLI versions. 
 the CLI would be here:
 - `C:\Program Files\Red Gate\Flyway Desktop\flyway`
 
-### 
+## dbt
 
+Installation:
+```
+pip install dbt-core dbt-sqlserver
+```
+
+The `dbt init` wizard is not able to correctly setup `profiles.yml` for SQL Server. It will be missing entries. It may be easier to create
+the file manually in advance.
+
+Path: `~/.dbt/profiles.yml`
+Content:
+```yml
+els_transform:
+  outputs:
+    dev:
+      driver: "ODBC Driver 18 for SQL Server"
+      database: els_db
+      schema: dw
+      host: <<host name>>
+      trust_cert: true
+      user: <<database user>>
+      password: <<password>>
+      port: 1433
+      threads: 1
+      type: sqlserver
+  target: dev
+```

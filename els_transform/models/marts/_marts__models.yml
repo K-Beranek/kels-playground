@@ -1,0 +1,12 @@
+
+version: 2
+
+models:
+  - name: dim_campus
+    description: "Campus"
+    columns:
+      - name: campus_id
+        description: "Natural key from els.campus"
+        data_tests:
+          - unique
+          - not_null
