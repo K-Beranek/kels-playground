@@ -1,4 +1,3 @@
-
 select
     id as campus_id,
     uuid,

@@ -14,6 +14,7 @@ Each component lives in its own top-level folder with its own `README.md`, `CLAU
 |---|---|---|---|
 | eLearning System Data Model | [`els-data-model`](els-data-model/) | Canonical entity definitions, ER diagram, machine-readable schema, and seed data for the fictional domain. | in progress |
 | eLearning System Database | [`els-database`](els-database/) | SQL Server database code: Flyway migrations, deployment tooling, and schema-modeling workspace. | in progress |
+| eLearning System Transformation | [`els_transform`](els_transform/) | dbt project transforming the raw `els` schema into a dimensional model (dimension/fact tables) for reporting. | in progress |
 
 See [`docs/README.md`](docs/README.md) for more on how components are documented and how they're meant to fit together.
 
