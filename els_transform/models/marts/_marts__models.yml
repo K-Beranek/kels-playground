@@ -10,3 +10,11 @@ models:
         data_tests:
           - unique
           - not_null
+  - name: dim_course
+    description: "Course"
+    columns:
+      - name: course_id
+        description: "Natural key from els.course"
+        data_tests:
+          - unique
+          - not_null

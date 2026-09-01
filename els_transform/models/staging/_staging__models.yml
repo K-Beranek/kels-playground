@@ -7,6 +7,14 @@ sources:
     tables:
       - name: campus
       - name: course
+      - name: term
+      - name: term_course
+      - name: study_program
+      - name: semester
+      - name: person
+      - name: course_person
+      - name: course_test
+      - name: submission
 
 models:
   - name: stg_els__campus
