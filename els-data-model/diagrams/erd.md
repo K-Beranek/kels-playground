@@ -80,7 +80,7 @@ erDiagram
     TERM {
         int campus_id FK "deliberate denormalization; part of composite UK with study_program_id/semester_id"
         int study_program_id FK "part of composite UK"
-        int semester_id FK UK "composite with campus_id/study_program_id"
+        int semester_id FK "composite with campus_id/study_program_id"
         int id PK "identity"
     }
 
@@ -94,7 +94,7 @@ erDiagram
     TERM_COURSE {
         int campus_id FK "deliberate denormalization; part of composite UK with term_id/course_id"
         int term_id FK "part of composite UK"
-        int course_id FK UK "composite with campus_id/term_id"
+        int course_id FK "composite with campus_id/term_id"
         string curriculum_type FK
         int id PK "identity"
     }
@@ -145,7 +145,7 @@ erDiagram
     COURSE_PERSON {
         int campus_id FK "deliberate denormalization; part of composite UK with course_id/person_id"
         int course_id FK "part of composite UK"
-        int person_id FK UK "composite with campus_id/course_id"
+        int person_id FK "composite with campus_id/course_id"
         string course_role FK
         int id PK "identity"
     }
