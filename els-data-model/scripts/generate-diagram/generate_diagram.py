@@ -75,7 +75,7 @@ def render_column(column: dict) -> str:
     # It requires Mermaid 11.16+ which is available on GitHub but not in VS Code.
     null_clause = "" if column.get("nullable", False) else ""
     pk_clause = " PK" if column.get("primaryKey", False) else ""
-    fk_clause = " FK" if column.get("foreignKey", False) else ""
+    fk_clause = " FK" if column.get("foreignKeys", False) else ""
     keys_clause = ", ".join(filter(None, (pk_clause, fk_clause)))
     short_description = column.get("shortDescription", "")
     comment_clause = f' "{build_comment(short_description)}"' if short_description else ""

@@ -17,19 +17,19 @@ erDiagram
     }
 
     COURSE {
-        integer campus_id PK
+        integer campus_id PK,  FK
         integer id PK
-        string course_type
+        string course_type FK
         string name
         string course_number "External identification"
         text description
     }
 
     COURSE_CONTENT {
-        integer campus_id PK
+        integer campus_id PK,  FK
         integer id PK
-        integer course_id
-        string content_type
+        integer course_id FK
+        string content_type FK
         integer ordering_position
         boolean active
         string document_text "Nullable"
@@ -43,11 +43,11 @@ erDiagram
     }
 
     COURSE_PERSON {
-        integer campus_id PK
+        integer campus_id PK,  FK
         integer id PK
-        integer course_id
-        integer person_id
-        string course_role
+        integer course_id FK
+        integer person_id FK
+        string course_role FK
     }
 
     COURSE_PERSON_ROLE {
@@ -58,9 +58,9 @@ erDiagram
     }
 
     COURSE_TEST {
-        integer campus_id PK
+        integer campus_id PK,  FK
         integer id PK
-        integer course_id
+        integer course_id FK
         string code
         boolean active
         string test_questions "Nullable"
@@ -83,7 +83,7 @@ erDiagram
     }
 
     PERSON {
-        integer campus_id PK
+        integer campus_id PK,  FK
         integer id PK
         string uuid "External identification"
         string first_name
@@ -98,7 +98,7 @@ erDiagram
     }
 
     STUDY_PROGRAM {
-        integer campus_id PK
+        integer campus_id PK,  FK
         integer id PK
         string code "External identification"
         string name
@@ -106,10 +106,10 @@ erDiagram
     }
 
     SUBMISSION {
-        integer campus_id PK
+        integer campus_id PK,  FK
         integer id PK
-        integer course_person_id
-        integer course_test_id
+        integer course_person_id FK
+        integer course_test_id FK
         datetime submitted_time
         string submission_text "Nullable"
         integer attempt_number
@@ -117,18 +117,18 @@ erDiagram
     }
 
     TERM {
-        integer campus_id PK
+        integer campus_id PK,  FK
         integer id PK
-        integer study_program_id
-        string semester_type
+        integer study_program_id FK
+        string semester_type FK
     }
 
     TERM_COURSE {
-        integer campus_id PK
+        integer campus_id PK,  FK
         integer id PK
-        integer term_id
-        integer course_id
-        string curriculum_type
+        integer term_id FK
+        integer course_id FK
+        string curriculum_type FK
     }
 
 
