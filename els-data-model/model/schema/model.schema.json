@@ -27,6 +27,18 @@
     }
   },
   "$defs": {
+    "foreignKey": {
+      "type": "object",
+      "required": ["name", "entity", "column", "relation"],
+      "additionalProperties": false,
+      "description": "Marks this column as a foreign key referencing another entity's column.",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the key. When key involves more columns add it to every column and use the same key name." },
+        "entity": { "type": "string", "description": "Referenced entity name, matching another file's \"entity\" value." },
+        "column": { "type": "string", "description": "Referenced column name within that entity." },
+        "relation": { "type": "string", "description": "Label of the reference in diagrams." }
+      }
+    },
     "column": {
       "type": "object",
       "required": ["name", "type", "nullable"],
@@ -76,19 +88,18 @@
           "default": false,
           "description": "Whether this column is an auto-generated identity/sequence column (SQL Server IDENTITY). An identity column cannot be nullable."
         },
-        "foreignKey": {
-          "type": "object",
-          "required": ["entity", "column"],
-          "additionalProperties": false,
-          "description": "Marks this column as a foreign key referencing another entity's column.",
-          "properties": {
-            "entity": { "type": "string", "description": "Referenced entity name, matching another file's \"entity\" value." },
-            "column": { "type": "string", "description": "Referenced column name within that entity." }
-          }
+        "foreignKeys": {
+          "type": "array",
+          "minItems": 0,
+          "items": { "$ref": "#/$defs/foreignKey" }
         },
         "comment": {
           "type": "string",
           "description": "Human-readable comment describing this column."
+        },
+        "shortDescription": {
+          "type": "string",
+          "description": "Description to be shown in documentation."
         }
       },
       "allOf": [

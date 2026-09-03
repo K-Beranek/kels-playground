@@ -7,7 +7,10 @@
       "name": "campus_id",
       "type": "integer",
       "nullable": false,
-      "foreignKey": { "entity": "Campus", "column": "id" },
+      "primaryKey": true,
+      "foreignKeys": [
+        { "name": "Campus", "entity": "Campus", "column": "id", "relation": "offers" }
+      ],
       "comment": "Campus this study program is offered at."
     },
     {
@@ -24,7 +27,8 @@
       "length": 50,
       "nullable": false,
       "uniqueWith": ["campus_id"],
-      "comment": "Human-readable program code, unique within its campus (the same code may be reused at a different campus)."
+      "comment": "Human-readable program code, unique within its campus (the same code may be reused at a different campus).",
+      "shortDescription": "External identification"
     },
     {
       "name": "name",

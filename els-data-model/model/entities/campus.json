@@ -17,7 +17,8 @@
       "length": 36,
       "nullable": false,
       "unique": true,
-      "comment": "Stable external identifier for the campus (e.g. for APIs/integrations), independent of the internal auto-generated id."
+      "comment": "Stable external identifier for the campus (e.g. for APIs/integrations), independent of the internal auto-generated id.",
+      "shortDescription": "External identification"
     },
     {
       "name": "code",
@@ -25,7 +26,8 @@
       "length": 20,
       "nullable": false,
       "unique": true,
-      "comment": "Short, human-memorable static code for the campus, unique system-wide -- unlike id (not static) or uuid (unique but not memorable)."
+      "comment": "Short, human-memorable static code for the campus, unique system-wide -- unlike id (not static) or uuid (unique but not memorable).",
+      "shortDescription": "Human-memorable code"
     },
     {
       "name": "name",
