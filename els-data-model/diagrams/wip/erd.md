@@ -121,6 +121,7 @@ erDiagram
         integer id PK
         integer study_program_id FK
         string semester_type FK
+        integer academic_year
     }
 
     TERM_COURSE {
