@@ -27,7 +27,7 @@
       "length": 30,
       "nullable": false,
       "foreignKeys": [
-        { "name": "CourseType", "entity": "CourseType", "column": "code", "relation": "categorizes" }
+        { "name": "Course_Type", "entity": "CourseType", "column": "code", "relation": "categorizes" }
       ],
       "comment": "How this course is delivered (e.g. In Person, Online) -- references course_type.code."
     },

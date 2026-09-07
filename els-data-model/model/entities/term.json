@@ -10,7 +10,7 @@
       "primaryKey": true,
       "foreignKeys": [
         { "name": "Campus", "entity": "Campus", "column": "id", "relation": "schedules" },
-        { "name": "StudyProgram", "entity": "StudyProgram", "column": "campus_id", "relation": "schedules" }
+        { "name": "Study_Program", "entity": "StudyProgram", "column": "campus_id", "relation": "schedules" }
       ],
       "comment": "Campus this term belongs to."
     },
@@ -27,7 +27,7 @@
       "type": "integer",
       "nullable": false,
       "foreignKeys": [
-        { "name": "StudyProgram", "entity": "StudyProgram", "column": "id", "relation": "schedules" }
+        { "name": "Study_Program", "entity": "StudyProgram", "column": "id", "relation": "schedules" }
       ],
       "comment": "Study program this term is an offering of."
     },
@@ -37,7 +37,7 @@
       "length": 30,
       "nullable": false,
       "foreignKeys": [
-        { "name": "SemesterType", "entity": "SemesterType", "column": "code", "relation": "categorizes" }
+        { "name": "Semester_Type", "entity": "SemesterType", "column": "code", "relation": "categorizes" }
       ],
       "comment": "Which semester type this is (e.g. Winter, Summer) -- references semester_type.code."
     }

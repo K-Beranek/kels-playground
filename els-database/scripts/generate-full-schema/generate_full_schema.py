@@ -44,6 +44,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from collections import defaultdict
 
 try:
     import jsonschema
@@ -219,16 +220,30 @@ def render_foreign_keys(entity: dict, table_by_entity: dict[str, str], db_schema
     already happened. That sidesteps needing to topologically sort tables by dependency — it
     doesn't matter which table is created first, since no FK is added until all of them exist."""
     statements = []
+    fk_fragments = defaultdict(list)
+
     for column in entity["columns"]:
-        fk = column.get("foreignKey")
-        if not fk:
+        fks = column.get("foreignKeys")
+        if not fks:
             continue
+
+        for fk in fks:
+            fk["referencing_column"] = column["name"]
+            fk_fragments[fk["name"]].append(fk)
+
+    for fk_name, members in fk_fragments.items():
+        referencing_columns = []
+        referenced_columns = []
+        for fk in members:
+            referencing_columns.append(fk["referencing_column"])
+            referenced_columns.append(fk["column"])
+
         ref_table = table_by_entity[fk["entity"]]
         table = f"{db_schema}.{entity['table']}"
-        constraint = f"FK_{entity['table']}_{column['name']}"
+        constraint = f"FK_{entity['table']}_{fk_name.lower()}"
         statements.append(
             f"ALTER TABLE {table} ADD CONSTRAINT {constraint} "
-            f"FOREIGN KEY ({column['name']}) REFERENCES {db_schema}.{ref_table} ({fk['column']});"
+            f"FOREIGN KEY ({', '.join(referencing_columns)}) REFERENCES {db_schema}.{ref_table} ({', '.join(referenced_columns)});"
         )
     return statements
 
