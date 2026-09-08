@@ -2,11 +2,9 @@ select
 	c.id AS course_id,
 	c.campus_id,
 	sp.id AS study_program_id,
-	s.id AS semester_id,
 	t.id AS term_id,
-	s.semester_type,
-	s.academic_year,
-	s.code AS semester_code,
+	t.semester_type,
+	t.academic_year,
 	sp.code AS study_program_code,
 	sp.description as study_program_description,
 	tc.curriculum_type,
@@ -22,5 +20,3 @@ from
 		ON t.id = tc.term_id
 	INNER JOIN  {{ source('els', 'study_program') }} sp
 		ON sp.id = t.study_program_id
-	INNER JOIN  {{ source('els', 'semester') }} s
-		ON s.id = t.semester_id

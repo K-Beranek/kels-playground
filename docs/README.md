@@ -11,3 +11,37 @@ Each component keeps its own reference documentation in its own `README.md` — 
 | eLearning System Data Model | [`els-data-model.md`](els-data-model.md) |
 | eLearning System Database | [`els-database.md`](els-database.md) |
 | eLearning System Transformation | [`els-transform.md`](els-transform.md) |
+
+## Cheat sheet
+
+Commands used to execute scripts.
+
+### Generate ER Diagram `wip/erd.md`
+
+```
+python .\els-data-model\scripts\generate-diagram\generate_diagram.py       
+```
+
+### Refresh `wip/els_full_schema.sql`
+
+```
+python .\els-database\scripts\generate-full-schema\generate_full_schema.py   
+```
+
+### Deploy migrations
+
+```
+.\els-database\scripts\Invoke-ElsMigration.ps1  
+```
+
+### Generate synthetic data
+
+```
+python .\els-database\scripts\generate-synthetic-data\generate_synthetic_data.py --campus-code X001 --name "Test X001" --complexity 100
+```
+
+### Build dbt
+
+```
+dbt build --project-dir els_transform
+```

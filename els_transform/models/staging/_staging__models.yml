@@ -10,7 +10,6 @@ sources:
       - name: term
       - name: term_course
       - name: study_program
-      - name: semester
       - name: person
       - name: course_person
       - name: course_test

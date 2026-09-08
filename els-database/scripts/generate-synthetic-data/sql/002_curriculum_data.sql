@@ -1,30 +1,4 @@
 ------------------------------------------------------------------------------
---  Semester - four records, years 2026 and 2027, each with WINTER and SUMMER semesters
-------------------------------------------------------------------------------
-WITH campus AS (
-    SELECT id
-    FROM   els.campus
-    WHERE  code = '{campus_code}'),
-academic_years AS (
-    SELECT academic_year
-    FROM   (VALUES (2026), (2027)) AS src(academic_year))
-INSERT INTO els.semester (
-    campus_id,
-    semester_type,
-    academic_year,
-    code
-)
-SELECT
-    c.id AS campus_id,
-    st.code AS semester_type,
-    ay.academic_year AS academic_year,
-    ay.academic_year || '/' || st.code AS code
-FROM
-    campus AS c
-    CROSS JOIN els.semester_type AS st
-    CROSS JOIN academic_years AS ay;
-
-------------------------------------------------------------------------------
 --  Study Program
 ------------------------------------------------------------------------------
 WITH campus AS (
@@ -76,24 +50,29 @@ WHERE
     gd.row_num <= drc.max_row_num;
 
 ------------------------------------------------------------------------------
---  Term
+--  Term - four records per Study Program, years 2026 and 2027, each with WINTER and SUMMER semesters
 ------------------------------------------------------------------------------
 WITH campus AS (
     SELECT id
     FROM   els.campus
-    WHERE  code = '{campus_code}')
+    WHERE  code = '{campus_code}'),
+academic_years AS (
+    SELECT academic_year
+    FROM   (VALUES (2026), (2027)) AS src(academic_year))
 INSERT INTO els.term (
     campus_id,
     study_program_id,
-    semester_id
+    semester_type,
+    academic_year
 )
 SELECT
     c.id AS campus_id,
     sp.id AS study_program_id,
-    sem.id AS semester_id
+    st.code AS semester_type,
+    ay.academic_year AS academic_year
 FROM
     campus AS c
     INNER JOIN els.study_program AS sp
         ON sp.campus_id = c.id
-    INNER JOIN els.semester AS sem
-        ON sem.campus_id = c.id;
+    CROSS JOIN els.semester_type AS st
+    CROSS JOIN academic_years AS ay;
