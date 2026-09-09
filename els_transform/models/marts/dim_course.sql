@@ -1,10 +1,12 @@
 select
-	c.id AS course_id,
+	{{ dbt_utils.generate_surrogate_key(['c.campus_id', 'c.id']) }} as course_dim_key,
 	c.campus_id,
+	c.id AS course_id,
 	sp.id AS study_program_id,
 	t.id AS term_id,
 	t.semester_type,
 	t.academic_year,
+	sp.name AS study_program_name,
 	sp.code AS study_program_code,
 	sp.description as study_program_description,
 	tc.curriculum_type,

@@ -221,7 +221,7 @@ generated_data AS (
         crs.id AS course_id,
         t.id AS term_id,
         CASE abs(checksum(CONCAT(c.id, crs.id, crs.name, t.id))) % 2 WHEN 0 THEN 'MANDATORY' ELSE 'OPTIONAL' END AS curriculum_type,
-        row_number() OVER (PARTITION BY c.id, crs.id ORDER BY checksum(CONCAT(c.id, crs.id, t.id))) AS row_num 
+        row_number() OVER (PARTITION BY c.id, crs.id ORDER BY checksum(CONCAT(c.id, crs.id, crs.name, t.semester_type, t.id * 11))) AS row_num
     FROM
         campus AS c
         INNER JOIN els.course crs

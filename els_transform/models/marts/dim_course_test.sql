@@ -1,4 +1,5 @@
 select
+	{{ dbt_utils.generate_surrogate_key(['ct.campus_id', 'ct.id']) }} as course_test_dim_key,
 	ct.id as course_test_id,
 	ct.campus_id,
 	ct.code,
