@@ -1,0 +1,5 @@
+# Generated NDJSON event files are data, not source -- this folder exists so the default
+# --output path has somewhere to land, but its contents are never committed. "Tracked folder,
+# ignored contents" pattern, same as els-database/full_db_model/wip/.
+*
+!.gitignore

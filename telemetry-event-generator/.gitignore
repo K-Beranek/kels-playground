@@ -1,0 +1,8 @@
+# This tool only ever reads from the database -- there's no migration/build state to ignore
+# here beyond the usual Python housekeeping. See config/.gitignore and output/.gitignore for
+# the secrets and generated-data rules.
+
+__pycache__/
+*.pyc
+.venv/
+venv/

@@ -11,6 +11,7 @@ Each component keeps its own reference documentation in its own `README.md` — 
 | eLearning System Data Model | [`els-data-model.md`](els-data-model.md) |
 | eLearning System Database | [`els-database.md`](els-database.md) |
 | eLearning System Transformation | [`els-transform.md`](els-transform.md) |
+| Telemetry Event Generator | [`els-telemetry-event-generator.md`](els-telemetry-event-generator.md) |
 
 ## Cheat sheet
 
@@ -44,4 +45,10 @@ python .\els-database\scripts\generate-synthetic-data\generate_synthetic_data.py
 
 ```
 dbt build --project-dir els_transform
+```
+
+### Generate telemetry events
+
+```
+python .\telemetry-event-generator\generate_telemetry_events.py --campus-uuid <campus-uuid> --session-count 20 --session-length 50
 ```
