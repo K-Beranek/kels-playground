@@ -2,10 +2,11 @@
 
 A Python script (`generate_telemetry_events.py`) that emulates a client application sending
 telemetry as a student works through the eLearning system. Read-only against
-[`els-database`](../els-database/); writes an NDJSON file today, a future Kafka producer
-tomorrow. See `README.md` for usage; this file captures the decisions behind the design, most
-of them made explicitly rather than defaulted to, during the planning conversation that
-preceded this script.
+[`els-database`](../els-database/); publishes to the [`kafka`](../kafka/) component by default,
+with an NDJSON file as an explicit, still-supported alternative/addition (`--sink`). See
+`README.md` for usage; this file captures the decisions behind the design, most of them made
+explicitly rather than defaulted to, during the planning conversations that preceded and then
+extended this script.
 
 ## Identifiers: internal surrogate ids, not uuids — deliberate
 
@@ -132,15 +133,118 @@ isn't "pick a database row": which body event type to attempt, the actual body-e
 `NEWID()`-based picks can't be seeded anyway, so a seed would only make half the randomness in
 a run reproducible, which was judged not worth the added CLI surface for what this tool is for.
 
+## Publishing to Kafka: `--sink`, default `kafka`, with `file`/`both` kept as options
+
+Added 2026-10-02, once the `kafka` component existed and was confirmed working. The NDJSON
+output format had been chosen specifically so that adding a Kafka producer later wouldn't
+require touching anything above `write_event()` — confirmed true in practice: `generate_session()`
+is completely unchanged by this; only `write_event()`'s construction and `main()`'s setup changed.
+
+**Default is `kafka`, not `file`, and not `both` — confirmed explicitly rather than assumed.**
+The three-part pipeline this script was always the first piece of is "generator → Kafka →
+SQL Server sink"; once Kafka exists, defaulting to still writing a local file only would mean
+every invocation needs an extra flag to do the thing the pipeline is actually for. `file` is kept
+as a real, equally-supported mode (not deprecated) for offline runs, debugging a batch of events
+without a broker running, or wanting a durable local copy — and `both` for getting a local copy
+of exactly what was sent, same run, same serialized bytes for each destination (see
+`build_write_event()`: the JSON payload is serialized once and reused, never built twice).
+
+**Kafka connectivity/topic-existence is checked once, upfront, before even connecting to the
+database** — not discovered partway through generating sessions. `get_kafka_config()` validates
+the config shape first (clear `ValueError` if the `kafka` section or its keys are missing);
+then the producer's `partitions_for(topic)` is called once as the connectivity+topic-existence
+probe, since `KafkaProducer(...)` itself never actually contacts the broker (see the next section
+for why that matters). This also means a `--sink file` run's config doesn't need a `kafka`
+section at all — backward compatible with any config.json written before this change.
+
+**Message key is `session_id`, value is the event's JSON, both as explicit raw UTF-8 bytes** —
+no `key_serializer`/`value_serializer` configured on the producer; this script encodes both
+itself, the same way it already explicitly UTF-8-encodes the NDJSON file. Keying by `session_id`
+was confirmed during the `kafka` component's own design (see `kafka/CLAUDE.md`) specifically so
+all of one session's events land on the same partition and are never read back out of order
+relative to each other, even though different sessions may spread across the topic's partitions.
+
+**Delivery is synchronous, one event at a time** (`producer.send(...).get(timeout=10)`), not
+batched-then-flushed. Deliberately mirrors the already-established "one round trip per operation,
+fine at this scale" choice for the database picks (≤100 sessions × ≤100 events is nowhere near
+where batching would start to matter), and keeps "did this event actually make it?" answerable
+per-event rather than only at the very end of a run. A delivery failure or timeout propagates as
+`kafka.errors.KafkaError`, caught in `main()` alongside `pyodbc.Error`, and stops the whole run
+immediately with a clear message — no retry, no silently-continued run with a gap in it.
+
+## Kafka client library: `kafka-python`, chosen over `confluent-kafka` — checked current state first
+
+This was a genuine fork worth surfacing rather than deciding silently, so it was asked about
+explicitly. Both libraries were confirmed actively maintained as of the research done when this
+was built (2026-10): `kafka-python` had just put out v3.0.11 (Aug 2026, "Production/Stable",
+171 commits in the preceding 90 days — a real revival; it had a period of much slower
+maintenance in the past, which is why it was worth checking current state rather than assuming);
+`confluent-kafka` is the library most real production deployments actually use, backed by
+`librdkafka` (the C library most non-JVM Kafka clients wrap). The deciding factor was installation
+friction, not raw capability: `kafka-python` ships as a universal pure-Python wheel, installs with
+plain `pip install` on any OS with zero native dependencies, while `confluent-kafka` needs a
+native wheel (Windows wheels exist but are more of an install-time edge case) — this project
+already has one OS-level-dependency headache in `pyodbc`'s ODBC driver requirement, and avoiding
+a second one for a comparatively low-stakes learning component was worth the (real, acknowledged)
+trade-off of not using the client most production Kafka deployments reach for.
+
+## `kafka-python`'s `KafkaProducer` does **not** fail fast by default — tested directly, not assumed
+
+This is the single most important thing to know before touching this script's Kafka setup code,
+and it was discovered by testing, not by reading documentation: against a deliberately
+unreachable address, `KafkaProducer(bootstrap_servers=...)` constructs instantly (it never
+actually contacts the broker at construction time — it only prepares local client state), and
+then `producer.send(...)`, `future.get(timeout=...)`, and even `producer.partitions_for(...)`
+**all hung past 20-30 seconds** with no exception, regardless of `request_timeout_ms`. The cause,
+confirmed by inspecting `KafkaProducer`'s accepted config keys directly: this version has **no
+exposed way to bound the broker-API-version auto-detection probe** that happens before any of
+those calls can proceed — older `kafka-python` versions had an `api_version_auto_timeout_ms`
+setting for exactly this; this version's accepted-config list doesn't include it at all.
+
+**The fix, verified by testing against the same unreachable address: pass `api_version` and
+`max_block_ms` explicitly.** Setting `api_version` skips the auto-detection probe entirely (the
+client is simply told what protocol version to assume, instead of asking); `max_block_ms` then
+bounds how long `send()`/`partitions_for()` may block waiting for metadata before raising
+`KafkaTimeoutError` (a `KafkaError` subclass). With both set, the exact same unreachable-address
+test failed in exactly the configured time, with a clear exception, every time. `KAFKA_API_VERSION`
+is hardcoded to `(4, 1, 2)` — matching the `kafka` component's own pinned `apache/kafka:4.1.2` —
+on the reasoning that this script only ever talks to that specific component's broker; if the
+`kafka` component's pinned version ever changes, this constant needs to change with it.
+`KAFKA_MAX_BLOCK_MS`/`KAFKA_REQUEST_TIMEOUT_MS` both reuse `KAFKA_DELIVERY_TIMEOUT_SECONDS` (10s)
+rather than being separately-tuned magic numbers.
+
+Worth remembering generally, not just for this script: a client library's defaults are not
+guaranteed to fail fast just because that would obviously be the more helpful behavior — this is
+exactly the kind of thing to actually test against a real unreachable endpoint before trusting,
+the same discipline already applied to the Kafka Docker permission errors in `kafka/CLAUDE.md`.
+
+## `kafka-python` is a hard, unconditional import — even for `--sink file`
+
+Mirrors the existing `pyodbc` import pattern exactly (`try: import ... except ImportError: sys.exit(...)`
+with an actionable message) rather than making it conditional on `--sink`. This is a deliberate
+simplification: the default `--sink` is `kafka`, so the overwhelming majority of runs need the
+import anyway, and `kafka-python`'s install cost is genuinely low (pure Python, no native
+dependency, unlike `pyodbc`'s ODBC driver) — not worth the added branching of making one import
+conditional on a CLI flag that hasn't even been parsed yet at import time. A `--sink file`-only
+user still needs `kafka-python` installed, but never needs it to actually work (no connection is
+attempted when `--sink` doesn't include `kafka`).
+
 ## Known gaps, flagged rather than filled in speculatively
 
 - No CI wired up yet.
-- Not yet run against a live SQL Server from this sandbox (no SQL Server reachable here) — the
-  event-generation logic itself is covered by a dry-run test suite against a fake in-memory
-  cursor (exercising normal sessions, the sparse-data skip path, and the eligible-course/picker
-  functions directly), but the real `pyodbc` connection path is unverified beyond code review.
-- No Kafka integration yet — this is the explicitly-scoped first half of a three-part plan
-  (`telemetry-event-generator` → a Kafka component → a consumer writing into a new
-  `els-database` table). The NDJSON output format was chosen specifically so that swapping the
-  file-append step for a Kafka producer call later shouldn't require touching anything above
-  `write_event()`.
+- Not yet run against a live SQL Server or a live Kafka broker from any sandbox this script has
+  been built in — neither was reachable. What *has* been verified for real, directly, not just
+  reasoned about: the event-generation logic (dry-run test suite against a fake in-memory
+  cursor — normal sessions, the sparse-data skip path, the eligible-course/picker functions);
+  `build_write_event()`'s three sink modes including key/value encoding (fake producer, asserting
+  on exactly what bytes/key would be sent); a full `main()` run end-to-end with both the database
+  connection and the Kafka producer faked out, checking the real CLI/config-loading/error-handling
+  path, not just the inner generation functions; and, run as an actual subprocess rather than a
+  unit test, all three Kafka-related CLI error paths (unreachable broker times out cleanly in the
+  configured window with a clear message; `--sink file` skips Kafka setup entirely when the
+  config has no `kafka` section; `--sink both` fails clearly, before touching the database, when
+  the `kafka` section is missing). What's still unverified: an actual successful delivery to a
+  real broker, and the real `pyodbc` connection path — both pending a run on a machine with both
+  reachable.
+- The Kafka→SQL Server consumer (the third and last part of the original plan) doesn't exist
+  yet.

@@ -4,43 +4,64 @@ Emulates a client application sending telemetry events as a student works throug
 eLearning system, for one campus. It reads real, pre-existing data out of
 [`els-database`](../els-database/) (which person, which courses, which content/tests/
 submissions exist) and turns that into a stream of session/login/activity/logout events —
-without ever writing anything back. Today it writes those events to a local NDJSON file; that
-file is an explicit stand-in for a future Kafka topic. A later component is expected to take
-over the "where do these events go" part without this one's event-generation logic changing
-at all.
+without ever writing anything back. By default, each event is published one at a time to the
+[`kafka`](../kafka/) component's `telemetry-events` topic, keyed by `session_id`. Passing
+`--sink file` (or `--sink both`) also writes — or writes instead — the same events as NDJSON to
+a local, append-only file; that was this script's only output before the `kafka` component
+existed, and is kept as an option for offline runs, debugging, or a side-by-side copy of what
+was sent. A later component is expected to consume from that topic and write into a new
+`els-database` table, the third and last part of this pipeline.
 
 ## Setup
 
 This needs a real, read-only connection to the same SQL Server database `els-database`
-deploys to. Two separate things need to be installed:
+deploys to, and (for the default `--sink kafka`/`both`) a reachable `kafka` component. Install
+both Python dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-That installs the `pyodbc` Python package — but `pyodbc` is a thin wrapper around a
-system-level ODBC driver, not a self-contained SQL Server client. The driver itself is a
-separate, OS-level install:
+That installs `pyodbc` and `kafka-python`. They have very different installation stories:
 
-- **Windows:** install "ODBC Driver 18 for SQL Server" (or 17) from Microsoft. `pyodbc` will
-  find it automatically once installed.
-- **Linux (Debian/Ubuntu):** install `unixodbc` plus Microsoft's `msodbcsql18` package from
-  Microsoft's `packages.microsoft.com` apt repository.
-- **macOS:** `brew tap microsoft/mssql-release && brew install msodbcsql18`.
+- **`pyodbc`** is a thin wrapper around a system-level ODBC driver, not a self-contained SQL
+  Server client — the driver itself is a separate, OS-level install:
+  - **Windows:** install "ODBC Driver 18 for SQL Server" (or 17) from Microsoft. `pyodbc` will
+    find it automatically once installed.
+  - **Linux (Debian/Ubuntu):** install `unixodbc` plus Microsoft's `msodbcsql18` package from
+    Microsoft's `packages.microsoft.com` apt repository.
+  - **macOS:** `brew tap microsoft/mssql-release && brew install msodbcsql18`.
 
-If the driver name installed on your machine doesn't match the default
-(`ODBC Driver 18 for SQL Server`), pass `--odbc-driver "ODBC Driver 17 for SQL Server"` (or
-whatever `odbcinst -q -d` reports as installed).
+  If the driver name installed on your machine doesn't match the default
+  (`ODBC Driver 18 for SQL Server`), pass `--odbc-driver "ODBC Driver 17 for SQL Server"` (or
+  whatever `odbcinst -q -d` reports as installed).
+
+- **`kafka-python`** is pure Python — no system-level driver, no compiler, nothing beyond
+  `pip install` needed, on any OS. **Make sure you get the right package**: the name on PyPI is
+  `kafka-python`; a different, unrelated package is literally named `kafka` and installing that
+  one instead will not work. `requirements.txt` already pins the correct one.
 
 Connection details come from this component's **own** `config/config.json` — copy
 `config/config.template.json` to `config/config.json` and fill in real values. This is a
 separate file from `els-database/config/config.json`, even though both will typically point
-at the same physical server — see `CLAUDE.md` for why.
+at the same physical server — see `CLAUDE.md` for why. The template's `kafka` section
+(`bootstrapServers`/`topic`) matches the `kafka` component's defaults out of the box; only
+`sqlServer`/`auth` need real values if you're running everything locally.
+
+If you only ever run this with `--sink file`, nothing Kafka-related in config or on your
+machine is actually used at runtime — but `kafka-python` still needs to be installed, since the
+import happens unconditionally; see `CLAUDE.md` for why that wasn't made optional.
 
 ## Usage
 
 ```bash
 python generate_telemetry_events.py --campus-uuid 3fa2c1e0-... --session-count 20 --session-length 50
+```
+
+That publishes to Kafka (the default). To also keep a local NDJSON copy of the same run:
+
+```bash
+python generate_telemetry_events.py --campus-uuid 3fa2c1e0-... --session-count 20 --session-length 50 --sink both
 ```
 
 | Parameter | Type | Constraint |
@@ -49,7 +70,8 @@ python generate_telemetry_events.py --campus-uuid 3fa2c1e0-... --session-count 2
 | `--session-count` | integer | 1–100. Number of sessions to simulate. |
 | `--session-length` | integer | 5–100. Upper bound on the number of body events per session — the actual count per session is random, 5..`session-length`. |
 
-Optional flags: `--output` (default: `output/telemetry_events.ndjson`, next to this script),
+Optional flags: `--sink` (default: `kafka`; `kafka`/`file`/`both`), `--output` (default:
+`output/telemetry_events.ndjson`, next to this script; used when `--sink` is `file` or `both`),
 `--config-path` (default: `config/config.json`), `--odbc-driver`
 (default: `ODBC Driver 18 for SQL Server`), `--lookback-days` (default: `30` — see
 "Session timing" below; `0` disables it).
@@ -97,6 +119,24 @@ Every event from `LOGIN` onward adds `person_id`:
 `course.id`, ...) — not `campus.uuid`/`person.uuid`. See `CLAUDE.md` for why that's deliberate
 rather than an oversight.
 
+## Publishing to Kafka
+
+When `--sink` is `kafka` or `both`, each event is sent to the configured topic (default
+`telemetry-events`) individually, **keyed by `session_id`** — Kafka keeps all messages sharing a
+key on the same partition, in order, so one simulated session's events are never read back out
+of order relative to each other, even though different sessions may land on different
+partitions. The key is the raw UTF-8 bytes of the session's UUID string; the value is the same
+compact JSON encoding used for the NDJSON file, also UTF-8 bytes — `--sink both` sends the exact
+same bytes to both destinations, not two independently-serialized copies.
+
+Delivery is confirmed synchronously, one event at a time (`producer.send(...).get(timeout=10)`)
+before moving on to the next — the same "one round trip per operation, fine at this scale"
+choice already made for the database picks above, not a batching/throughput optimization. If a
+single event's delivery fails or times out, the whole run stops immediately with a clear error
+(no retry, no partial success silently treated as success) — this script never creates the topic
+itself; that's the `kafka` component's `topic-init` service's job, and this script will tell you
+clearly, before simulating anything, if the topic can't be found.
+
 ## Behavior worth knowing about
 
 - **Read-only, pre-existing data only.** This tool never inserts, updates, or deletes a row —
@@ -125,8 +165,12 @@ rather than an oversight.
 - One round-trip query per random pick (one per event, roughly) rather than batching —
   perfectly fine at the scale this is meant to run at (≤100 sessions × ≤100 events), but
   wouldn't scale well to a much larger run without caching the eligible content/test/
-  submission pools in memory per course.
+  submission pools in memory per course. The same "fine at this scale, wouldn't batch well
+  beyond it" trade-off now also applies to the one-event-at-a-time Kafka delivery confirmation.
 - No person-role filtering (e.g. restricting to Student-role `course_person` rows) — relying
   entirely on the "no matching data → skip" behavior instead, which was a deliberate choice,
   not an oversight (see `CLAUDE.md`).
-- Single-threaded, synchronous, and does not talk to Kafka yet — see "What's next" above.
+- Single-threaded, synchronous throughout — one session at a time, one event at a time, one
+  Kafka delivery confirmation at a time.
+- No live SQL Server or live Kafka broker was reachable from the sandbox this was last built
+  in — see `CLAUDE.md`'s "Known gaps" for exactly what has and hasn't been verified for real.

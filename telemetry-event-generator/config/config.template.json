@@ -10,5 +10,9 @@
   "auth": {
     "user": "sa",
     "password": "CHANGE_ME"
+  },
+  "kafka": {
+    "bootstrapServers": "localhost:9092",
+    "topic": "telemetry-events"
   }
 }

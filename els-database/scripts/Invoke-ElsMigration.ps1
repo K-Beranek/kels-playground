@@ -96,7 +96,7 @@ Write-Host "Running 'flyway $FlywayCommand' against database '$($sqlServer.datab
 
 & flyway $FlywayCommand `
     "-url=$jdbcUrl" `
-    "-X" `
+<#    "-X" #> `
     "-user=$($auth.user)" `
     "-password=$($auth.password)" `
     "-schemas=$Schema" `

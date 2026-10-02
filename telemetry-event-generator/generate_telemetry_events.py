@@ -3,10 +3,12 @@
 generate_telemetry_events.py
 
 Emulates a client application sending telemetry events as a student works through the
-eLearning system, for one campus. This is a stand-in for a future Kafka producer: it does
-not send anything over the network yet -- it writes one JSON object per line (NDJSON) to an
-append-only output file. A later component is expected to replace the "append to a file"
-step with "publish to a Kafka topic" without touching the event-generation logic below.
+eLearning system, for one campus. By default, events are published one at a time to the
+`kafka` component's `telemetry-events` topic (see ../kafka/), keyed by session_id so one
+session's events stay in order on one partition. Passing --sink file (or --sink both) also
+writes (or writes instead) the same events as NDJSON -- one JSON object per line -- to a local,
+append-only file; this was this script's only output before the `kafka` component existed, and
+is kept as an option for offline runs, debugging, or a side-by-side copy of what was sent.
 
 This tool is strictly read-only against the database: it never creates, updates, or deletes
 any els-database row. Every event references real, pre-existing data (a real person, a real
@@ -37,7 +39,7 @@ Usage:
     python generate_telemetry_events.py --campus-uuid 3fa2c1e0-... --session-count 20 \\
         --session-length 50
     python generate_telemetry_events.py --campus-uuid 3fa2c1e0-... --session-count 5 \\
-        --session-length 10 --output ./output/telemetry_events.ndjson \\
+        --session-length 10 --sink both --output ./output/telemetry_events.ndjson \\
         --config-path ./config/config.json --odbc-driver "ODBC Driver 17 for SQL Server" \\
         --lookback-days 0
 """
@@ -63,10 +65,47 @@ except ImportError:
         "see README.md's Setup section, this is not something 'pip install' can provide."
     )
 
+try:
+    from kafka import KafkaProducer
+    from kafka.errors import KafkaError
+except ImportError:
+    sys.exit(
+        "The 'kafka-python' package is required but is not installed.\n"
+        "Install it with:\n"
+        "    pip install -r requirements.txt\n"
+        "Note the package name is 'kafka-python' -- a different, unrelated package on PyPI is\n"
+        "literally named 'kafka'; installing that one instead will not work.\n"
+        "If you only ever intend to run this with --sink file, Kafka is not actually needed at\n"
+        "runtime, but the import above is unconditional for simplicity -- install it anyway, or\n"
+        "see CLAUDE.md for why this wasn't made optional."
+    )
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_CONFIG_PATH = SCRIPT_DIR / "config" / "config.json"
 DEFAULT_OUTPUT_PATH = SCRIPT_DIR / "output" / "telemetry_events.ndjson"
 DEFAULT_ODBC_DRIVER = "ODBC Driver 18 for SQL Server"
+
+# Where generated events go. "kafka" (the default) publishes to the configured Kafka topic;
+# "file" writes NDJSON only, matching this script's original (pre-Kafka) behaviour; "both" does
+# both for the same run. See CLAUDE.md for why "kafka" is the default rather than "file".
+SINK_CHOICES = ("kafka", "file", "both")
+DEFAULT_SINK = "kafka"
+
+# How long to wait for a single message's delivery confirmation before giving up. Kept short and
+# fixed (not a CLI flag) -- this is a local single-broker dev cluster, not a flaky WAN link.
+KAFKA_DELIVERY_TIMEOUT_SECONDS = 10
+
+# max_block_ms (how long send()/partitions_for() may block on metadata before raising
+# KafkaTimeoutError) and api_version (skips an otherwise-unbounded broker-version auto-detection
+# probe) are both set explicitly for the same reason: tested directly against an unreachable
+# broker while building this, kafka-python 3.0.11's KafkaProducer does NOT fail fast on its own
+# -- with either setting left out, send()/partitions_for() hung well past a minute instead of
+# raising. There is no "auto-detect, but bounded" option exposed in this version; api_version
+# must be stated outright to get any bounded failure at all. Set to match the kafka component's
+# own pinned broker version (apache/kafka:4.1.2) -- update this if that pin ever changes.
+KAFKA_API_VERSION = (4, 1, 2)
+KAFKA_MAX_BLOCK_MS = KAFKA_DELIVERY_TIMEOUT_SECONDS * 1000
+KAFKA_REQUEST_TIMEOUT_MS = KAFKA_DELIVERY_TIMEOUT_SECONDS * 1000
 
 # "number_of_events" per session is a random integer in this range (upper bound is
 # --session-length). The lower bound of 5 is fixed, exactly as specified -- not a flag, since
@@ -150,6 +189,26 @@ def build_connection_string(config: dict, odbc_driver: str) -> str:
         f"Encrypt={encrypt};"
         f"TrustServerCertificate={trust_cert};"
     )
+
+
+def get_kafka_config(config: dict) -> tuple[str, str]:
+    """Extracts bootstrapServers/topic from config['kafka']. Raises ValueError with a clear,
+    specific message (caught by main() and printed to stderr) rather than letting a missing
+    key surface as a raw KeyError -- same discipline as every other config-shape check in this
+    repo's tooling."""
+    kafka_config = config.get("kafka")
+    if not kafka_config:
+        raise ValueError(
+            "config file has no 'kafka' section (required for --sink kafka/both) -- see "
+            "config/config.template.json for the expected shape, or re-run with --sink file."
+        )
+    bootstrap_servers = kafka_config.get("bootstrapServers")
+    topic = kafka_config.get("topic")
+    if not bootstrap_servers or not topic:
+        raise ValueError(
+            "config's 'kafka' section must have both 'bootstrapServers' and 'topic' set."
+        )
+    return bootstrap_servers, topic
 
 
 def resolve_campus_id(cursor: "pyodbc.Cursor", campus_uuid: str) -> int | None:
@@ -285,7 +344,9 @@ def generate_session(
     lookback_days: int,
     write_event,
 ) -> tuple[int, int]:
-    """Generates and writes one full session's events. Returns (events_written, events_skipped)."""
+    """Generates and writes one full session's events. Returns (events_written, events_skipped).
+    write_event(event) is called once per event, in order -- it doesn't know or care whether
+    that means publishing to Kafka, appending to a file, or both; see build_write_event()."""
     session_id = str(uuid.uuid4())
     person_id = pick_session_person(cursor, campus_id)
     eligible_course_ids = get_eligible_course_ids(cursor, campus_id, person_id)
@@ -336,6 +397,35 @@ def generate_session(
     return written, skipped
 
 
+def build_write_event(sink: str, producer: "KafkaProducer | None", topic: str | None, output_file):
+    """Builds the write_event(event) callback generate_session() calls once per event. Each
+    event is serialized once (compact JSON, matching the NDJSON file's existing format) and the
+    resulting bytes are reused for whichever destination(s) are active -- never serialized twice
+    just because both sinks are on.
+
+    Kafka delivery is synchronous: future.get(timeout=...) blocks until the broker has
+    acknowledged the message (or raises) before this function returns, so a run never finishes
+    claiming success while messages are still in flight. This mirrors the "one round trip per
+    operation, fine at this scale" choice already made for the database picks above, rather than
+    batching sends and flushing once at the end for throughput -- not needed at <=100
+    sessions x <=100 events, and it keeps "did this event actually make it?" a direct, per-event
+    question instead of something only answered at the very end of a run."""
+
+    def write_event(event: dict) -> None:
+        payload = json.dumps(event, separators=(",", ":")).encode("utf-8")
+
+        if sink in ("kafka", "both"):
+            key = event["session_id"].encode("utf-8")
+            future = producer.send(topic, key=key, value=payload)
+            future.get(timeout=KAFKA_DELIVERY_TIMEOUT_SECONDS)
+
+        if sink in ("file", "both"):
+            output_file.write(payload.decode("utf-8"))
+            output_file.write("\n")
+
+    return write_event
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -354,16 +444,23 @@ def main() -> int:
              "SUBMISSION) per session -- the actual count is random, 5..session-length.",
     )
     parser.add_argument(
+        "--sink", choices=SINK_CHOICES, default=DEFAULT_SINK,
+        help="Where generated events go (default: %(default)s). 'kafka' publishes to the "
+             "configured Kafka topic; 'file' writes NDJSON to --output only (this script's "
+             "original, pre-Kafka behaviour); 'both' does both for the same run.",
+    )
+    parser.add_argument(
         "--output", type=Path, default=DEFAULT_OUTPUT_PATH,
-        help="NDJSON file to append events to -- one JSON object per line, created (along with "
-             "its parent folder) if it doesn't exist yet (default: %(default)s). The file as a "
-             "whole is not valid JSON -- no enclosing array, no commas between lines -- that's "
-             "deliberate, see README.md.",
+        help="NDJSON file to append events to when --sink is 'file' or 'both' -- one JSON "
+             "object per line, created (along with its parent folder) if it doesn't exist yet "
+             "(default: %(default)s). The file as a whole is not valid JSON -- no enclosing "
+             "array, no commas between lines -- that's deliberate, see README.md. Ignored "
+             "when --sink is 'kafka'.",
     )
     parser.add_argument(
         "--config-path", type=Path, default=DEFAULT_CONFIG_PATH,
-        help="Path to the JSON config file with sqlServer/auth connection details "
-             "(default: %(default)s).",
+        help="Path to the JSON config file with sqlServer/auth connection details, plus a "
+             "kafka section when --sink is 'kafka' or 'both' (default: %(default)s).",
     )
     parser.add_argument(
         "--odbc-driver", default=DEFAULT_ODBC_DRIVER,
@@ -387,6 +484,55 @@ def main() -> int:
         return 1
 
     config = json.loads(args.config_path.read_text(encoding="utf-8"))
+
+    # Kafka setup happens before the database connection is even attempted: if --sink needs
+    # Kafka and Kafka isn't reachable, there's no point opening (and then having to clean up) a
+    # database connection first -- fail on the cheaper check first.
+    producer: "KafkaProducer | None" = None
+    kafka_topic: str | None = None
+    needs_kafka = args.sink in ("kafka", "both")
+    if needs_kafka:
+        try:
+            bootstrap_servers, kafka_topic = get_kafka_config(config)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+
+        try:
+            producer = KafkaProducer(
+                bootstrap_servers=bootstrap_servers,
+                api_version=KAFKA_API_VERSION,
+                max_block_ms=KAFKA_MAX_BLOCK_MS,
+                request_timeout_ms=KAFKA_REQUEST_TIMEOUT_MS,
+            )
+        except KafkaError as e:
+            print(f"Error: could not set up the Kafka producer: {e}", file=sys.stderr)
+            return 1
+
+        # KafkaProducer() above never actually contacts the broker -- it only prepares local
+        # client state, so a down/unreachable broker won't show up until the first real
+        # operation. partitions_for() is that first operation: it also confirms the topic
+        # itself exists (created by the kafka component's topic-init step, not by this script).
+        try:
+            partitions = producer.partitions_for(kafka_topic)
+        except KafkaError as e:
+            print(
+                f"Error: could not reach Kafka at '{bootstrap_servers}': {e}\n"
+                "Make sure the kafka component is running (cd ../kafka && docker compose up -d).",
+                file=sys.stderr,
+            )
+            producer.close()
+            return 1
+        if not partitions:
+            print(
+                f"Error: topic '{kafka_topic}' not found on the Kafka cluster at "
+                f"'{bootstrap_servers}'. Make sure the kafka component is running and its "
+                "topic-init step has completed (cd ../kafka && docker compose ps).",
+                file=sys.stderr,
+            )
+            producer.close()
+            return 1
+
     connection_string = build_connection_string(config, args.odbc_driver)
 
     try:
@@ -395,8 +541,11 @@ def main() -> int:
         connection = pyodbc.connect(connection_string, autocommit=True)
     except pyodbc.Error as e:
         print(f"Error: could not connect to the database: {e}", file=sys.stderr)
+        if producer is not None:
+            producer.close()
         return 1
 
+    output_file = None
     try:
         cursor = connection.cursor()
 
@@ -413,34 +562,47 @@ def main() -> int:
             )
             return 1
 
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-
         rng = random.Random()
         total_written = 0
         total_skipped = 0
+        needs_file = args.sink in ("file", "both")
 
-        with args.output.open("a", encoding="utf-8") as output_file:
-            def write_event(event: dict) -> None:
-                output_file.write(json.dumps(event, separators=(",", ":")))
-                output_file.write("\n")
+        if needs_file:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            output_file = args.output.open("a", encoding="utf-8")
 
-            for _ in range(args.session_count):
-                written, skipped = generate_session(
-                    cursor, campus_id, args.session_length, rng, args.lookback_days, write_event
-                )
-                total_written += written
-                total_skipped += skipped
+        write_event = build_write_event(args.sink, producer, kafka_topic, output_file)
 
+        for _ in range(args.session_count):
+            written, skipped = generate_session(
+                cursor, campus_id, args.session_length, rng, args.lookback_days, write_event
+            )
+            total_written += written
+            total_skipped += skipped
+
+        destinations = []
+        if needs_kafka:
+            destinations.append(f"Kafka topic '{kafka_topic}'")
+        if needs_file:
+            destinations.append(f"'{args.output}'")
         print(
             f"Wrote {total_written} event(s) across {args.session_count} session(s) to "
-            f"'{args.output}' ({total_skipped} body event(s) skipped for lack of matching data)."
+            f"{' and '.join(destinations)} ({total_skipped} body event(s) skipped for lack of "
+            "matching data)."
         )
         return 0
     except pyodbc.Error as e:
         print(f"Error: a database operation failed: {e}", file=sys.stderr)
         return 1
+    except KafkaError as e:
+        print(f"Error: a Kafka operation failed: {e}", file=sys.stderr)
+        return 1
     finally:
         connection.close()
+        if output_file is not None:
+            output_file.close()
+        if producer is not None:
+            producer.close()
 
 
 if __name__ == "__main__":

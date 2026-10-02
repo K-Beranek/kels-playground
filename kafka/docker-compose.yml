@@ -1,0 +1,76 @@
+services:
+  broker:
+    image: apache/kafka:4.1.2
+    hostname: broker
+    container_name: els-kafka-broker
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@broker:29093'
+      KAFKA_LISTENERS: 'CONTROLLER://:29093,PLAINTEXT_HOST://:9092,PLAINTEXT://:19092'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT_HOST://localhost:9092,PLAINTEXT://broker:19092'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      # Fixed, arbitrary cluster id (any valid base64-encoded UUID works) -- KRaft needs one at
+      # format time and there's no separate "format" step with this image, so it's baked in here
+      # rather than generated per-run. Safe to share across dev environments; it only has to be
+      # unique if this broker ever needed to talk to a *different* KRaft cluster, which it won't.
+      CLUSTER_ID: '4L6g3nShT-eMCtK--X86sw'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Kafka's own default log.dirs is /tmp/kraft-combined-logs, which works fine with no volume
+      # attached (container /tmp is world-writable) but breaks the moment a *named* Docker volume
+      # is mounted there: Docker provisions a fresh volume as a new root:root-owned directory,
+      # masking /tmp's normal permissions, and this image's broker process runs as a non-root user
+      # (appuser) that then can't write to it. /var/lib/kafka/data is the one data directory the
+      # image's own Dockerfile already chown's to appuser and declares as a VOLUME -- pointing
+      # here instead means a named volume mounted on it inherits that ownership from the image,
+      # so persistence works without weakening the image's non-root hardening (see CLAUDE.md).
+      KAFKA_LOG_DIRS: '/var/lib/kafka/data'
+    volumes:
+      - broker-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server broker:19092 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  topic-init:
+    image: apache/kafka:4.1.2
+    container_name: els-kafka-topic-init
+    depends_on:
+      broker:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server broker:19092 \
+          --create --if-not-exists \
+          --topic telemetry-events \
+          --partitions 3 \
+          --replication-factor 1
+        echo "Topic ready."
+    restart: "no"
+
+  kafka-ui:
+    image: ghcr.io/kafbat/kafka-ui:latest
+    container_name: els-kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: broker:19092
+    depends_on:
+      broker:
+        condition: service_healthy
+
+volumes:
+  broker-data:
