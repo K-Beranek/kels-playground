@@ -229,9 +229,53 @@ conditional on a CLI flag that hasn't even been parsed yet at import time. A `--
 user still needs `kafka-python` installed, but never needs it to actually work (no connection is
 attempted when `--sink` doesn't include `kafka`).
 
+## Test suite: pytest, under `tests/`, committed 2026-10-02
+
+This component's tests started as an in-session dry-run script (never committed) and were
+converted to a proper, committed `pytest` suite once they'd grown to real, durable coverage —
+the first component in this repo to have a committed test suite at all, so the shape chosen here
+is worth treating as the template for the next one, not just this component's own business:
+
+- **`tests/` subfolder, `pytest`, a `conftest.py` for shared setup.** `conftest.py` does two
+  things every test file in this folder would otherwise have to repeat: inserts this component's
+  root onto `sys.path` (so `generate_telemetry_events.py` — a standalone script, not an installed
+  package — is importable from a test file one directory down), and stubs `pyodbc` into
+  `sys.modules` when the real package can't be imported (most dev machines and CI runners won't
+  have a Microsoft ODBC driver installed at the OS level; nothing under test actually needs real
+  ODBC behavior, only the module to exist). `kafka-python` needs no such stub — it's a normal
+  installed dependency in the test environment, since it's pure Python with nothing OS-level to
+  be missing; tests substitute a fake *producer instance* (`FakeKafkaProducer`), not a fake
+  *module*, which is a narrower, more precise fake than pyodbc's needs.
+- **`pytest.ini` with `testpaths = tests`** — one line, but explicit rather than relying on
+  pytest's default discovery scanning the whole component folder (which would also walk
+  `config/`, `output/`, etc. for no reason). Matches this repo's general preference for stating
+  a tool's scope explicitly over leaning on a default that happens to work today.
+- **`requirements-dev.txt` (`-r requirements.txt` plus `pytest`), separate from
+  `requirements.txt`.** A normal run of the script itself (`pip install -r requirements.txt`)
+  never needs a test framework installed; only someone actually running or extending the test
+  suite does. This is a new, precedent-setting convention for the repo — see the project's
+  `conventions-and-roadmap.md` for it being captured as a cross-component pattern, not just a
+  one-off choice here.
+- **Fakes are hand-written, not a mocking library.** `FakeCursor`/`FakeConnection`/
+  `FakeKafkaProducer`/`FakeDeliveryFuture` are small classes that duck-type just the surface the
+  code under test actually calls, rather than `unittest.mock.Mock()` objects with asserted call
+  counts. This was already the style of the pre-commit dry-run script and was kept rather than
+  rewritten around a mocking library — a fake that implements real (if simplified) behavior
+  catches more than a mock that only records "was this method called," at a readability cost
+  that's small while the fakes stay this simple.
+- **One test file for now, not split by concern.** 13 tests, already organized into clearly-named
+  groups (database/generation logic, `get_kafka_config`, `build_write_event`'s three sink modes,
+  one full `main()` end-to-end run) — splitting into `test_generation.py`/`test_kafka_sink.py`/
+  `test_cli.py` was considered and deferred until there's an actual reason to (more test files
+  needing their own fixtures, or the single file becoming hard to navigate), not done speculatively.
+
 ## Known gaps, flagged rather than filled in speculatively
 
-- No CI wired up yet.
+- No CI wired up yet — the test suite above is committed and runnable locally
+  (`pip install -r requirements-dev.txt && pytest`), but nothing runs it automatically on push
+  or PR yet. Deliberately not built in the same pass as committing the tests themselves, at
+  Karel's request — see the project's `conventions-and-roadmap.md` for what a GitHub Actions
+  workflow for this would look like when it's time to build one.
 - Not yet run against a live SQL Server or a live Kafka broker from any sandbox this script has
   been built in — neither was reachable. What *has* been verified for real, directly, not just
   reasoned about: the event-generation logic (dry-run test suite against a fake in-memory

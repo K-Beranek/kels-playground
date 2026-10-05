@@ -9,9 +9,10 @@ existing content/test/submission activity) and turns it into a stream of
 `SESSION_INIT`/`LOGIN`/`CONTENT_ACCESS`/`COURSE_TEST`/`SUBMISSION`/`LOGOUT` events. By default
 each event is published to the [`kafka`](../kafka/) component's `telemetry-events` topic, keyed
 by `session_id`; `--sink file`/`both` writes (or also writes) the same events as NDJSON to a
-local file, which was this script's only output before `kafka` existed. This is the first two
-parts of a planned three-part pipeline: this generator → `kafka` → a consumer that writes events
-into a new `els-database` table. The consumer doesn't exist yet.
+local file, which was this script's only output before `kafka` existed. This is the first part of
+a three-part pipeline, now complete in design: this generator → [`kafka`](../kafka/) →
+[`telemetry-event-consumer`](../telemetry-event-consumer/), which writes events into a new
+`els-database` table. See that component's review for what's actually been verified live.
 
 ## Key decisions
 
@@ -32,7 +33,7 @@ into a new `els-database` table. The consumer doesn't exist yet.
 ## How other components should use this
 
 - Reads `els-database`'s deployed `els` schema directly (read-only) — a second component to build on top of `els-database`, alongside `els_transform`.
-- Publishes to the [`kafka`](../kafka/) component's `telemetry-events` topic by default — the second leg of the generator → Kafka → SQL Server pipeline is now live. A future consumer component is expected to read from that topic and write into a new `els-database` table; it doesn't exist yet.
+- Publishes to the [`kafka`](../kafka/) component's `telemetry-events` topic by default — the first leg of the generator → Kafka → SQL Server pipeline. [`telemetry-event-consumer`](../telemetry-event-consumer/) reads that topic and writes into a new `els-database` table, completing the pipeline in design.
 - Does not read `els-data-model` or `els_transform` at all.
 
 ## Status
@@ -48,5 +49,12 @@ Kafka-related CLI error paths (clean timeout against an unreachable broker, `--s
 correctly needing no Kafka config, `--sink both` correctly failing clearly when Kafka config is
 missing). Not yet verified: an actual successful delivery to a real broker, and the real
 `pyodbc` connection path — neither a live SQL Server nor a live Kafka broker was reachable from
-the sandbox this was built in. No CI yet. The consumer-side SQL Server sink is the next planned
-component.
+the sandbox this was built in. The consumer-side SQL Server sink is the next planned component.
+
+The dry-run test suite above was converted into a proper, committed `pytest` suite the same day
+(`tests/`, `tests/conftest.py`, `pytest.ini`, `requirements-dev.txt`) — the first component in
+this repo with a committed test suite. `pip install -r requirements-dev.txt && pytest` runs all
+13 tests offline, with no live SQL Server or Kafka broker needed, since everything is exercised
+against hand-written fakes. No CI wired up yet to run it automatically — that's a deliberate next
+step, not an oversight; see the project's `conventions-and-roadmap.md` for what a GitHub Actions
+workflow for this component would look like.

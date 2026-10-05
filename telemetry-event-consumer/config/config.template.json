@@ -1,0 +1,19 @@
+{
+  "sqlServer": {
+    "host": "host.docker.internal",
+    "port": 1433,
+    "instanceName": "",
+    "database": "els_dev",
+    "encrypt": true,
+    "trustServerCertificate": true
+  },
+  "auth": {
+    "user": "telemetry_consumer",
+    "password": "CHANGE_ME"
+  },
+  "kafka": {
+    "bootstrapServers": "broker:19092",
+    "topic": "telemetry-events",
+    "groupId": "telemetry-event-consumer"
+  }
+}

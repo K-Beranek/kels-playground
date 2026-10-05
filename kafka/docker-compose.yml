@@ -74,3 +74,16 @@ services:
 
 volumes:
   broker-data:
+
+networks:
+  # Every service above still attaches implicitly to Compose's "default" network -- naming
+  # *that* network explicitly (rather than adding a custom one and listing it on each service)
+  # changes nothing about how broker/topic-init/kafka-ui talk to each other. What it does change:
+  # Compose's implicit default network name is derived from this project's name, which in turn
+  # defaults to this folder's name ("kafka" -> "kafka_default") unless overridden -- a name that
+  # would silently change if this folder were ever renamed or compose were invoked with a
+  # different -p/COMPOSE_PROJECT_NAME. telemetry-event-consumer's own docker-compose.yml needs to
+  # join this network from a separate compose file (external: true), so it needs a name that
+  # won't move out from under it for reasons that have nothing to do with Kafka.
+  default:
+    name: els-kafka-net

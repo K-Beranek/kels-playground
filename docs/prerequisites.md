@@ -39,6 +39,16 @@ Use SSMS to create new Security / Login:
 - Go to `User Mapping` and map the login to database `els_db`
 - In the bottom part select appropriate roles: `db_datareader`, `db_datawriter`, `db_ddladmin` and `db_owner`
 
+### Telemetry upload user for the database
+
+Use SSMS to create new Security / Login:
+- Login name: `telemetry_consumer`
+- Select `SQL Authentication`
+- Pick a strong password and tick off `Enforce password expiration`
+- Change default database to `els_db`
+- Go to `User Mapping` and map the login to database `els_db`
+- In the bottom part do not select any additional role, this will be granted by Flyway migration script
+
 ### Enable connecting to the server
 
 By detault the service `SQL Server Browser` is set to disabled and so is the `TCP/IP` protocol. In order to able to connect using JDBC you may have to:

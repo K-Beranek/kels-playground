@@ -24,6 +24,30 @@ The SQL Server side of the fictional eLearning System: Flyway migrations, the sc
 - **`pyodbc` for the live-database connection, reusing `config/config.json`'s existing `sqlServer`/`auth` keys rather than a second config format.** `pyodbc` needs a real OS-level ODBC driver installed alongside the pip package — worth flagging since that's an easy first-run trip-up, especially for a component built mostly on Windows + SQL Server tooling that isn't yet second nature (`--odbc-driver` exists specifically so the exact installed driver name can be overridden).
 - **The statement splitter for `.sql` files is a restricted character scan, not a full parser.** It understands string literals and comments well enough to not split on a `;` inside either, but deliberately does not understand SQL Server's `GO` batch separator or any construct where an internal `;` must stay grouped with others (`BEGIN...END`, a procedure body) — those need to be avoided in these files or routed through a real stored procedure instead, invoked with one `EXEC` statement.
 - **No transaction management in `generate-synthetic-data`, by design — for now.** The connection runs in autocommit mode; a failure partway through a run leaves everything before it permanently committed, and a retry with the same `--campus-code` will typically fail immediately on `Campus.code`'s uniqueness constraint. Wrapping the whole run in one transaction was considered and set aside: it would make retries safe, but at the cost of every `.sql` file having to assume it's running inside someone else's open transaction, and a single long transaction spanning many files risking lock contention under concurrent runs. A reasonable thing to revisit if partial-run cleanup becomes a recurring annoyance in practice.
+- **A new `events` schema, and the repo's first application-scoped (not admin) SQL login.** Every
+  component so far connects as `els_accountadmin`, effectively an admin account. `events` holds
+  `telemetry_event` (a raw landing table written by `telemetry-event-consumer`), and the login that
+  writes to it — `telemetry_consumer` — is granted `INSERT` on that one table specifically, nothing
+  more. Creating the login without committing its password introduced **Flyway placeholders**
+  (`${telemetry_consumer_password}` in the migration, substituted via a new `-Placeholders`
+  parameter on `Invoke-ElsMigration.ps1`) — a different answer than this repo's usual
+  "commit a template, gitignore the real file" pattern, chosen because a migration is meant to be
+  identical SQL for every environment, not something with a gitignored real copy per environment.
+- **`CREATE LOGIN` is server-scoped, not database-scoped — an explicit mismatch flagged in the
+  migration itself.** It's the only thing in `migrations/` so far that isn't really "an
+  events-schema object," and it carries a real risk: the connecting account needs genuine server
+  permissions to create a login, not just `db_owner` on the target database, which
+  `els_accountadmin` may or may not have. `IF NOT EXISTS` guards were added specifically because
+  Flyway's per-schema migration tracking wouldn't otherwise catch a login that already exists
+  instance-wide if this were ever re-run against a second database on the same server.
+- **Table/column comments documented via `utils.set_table_comment`/`set_column_comment`, not by
+  editing an already-applied migration's SQL comment.** `events/V0001__initial_schema.sql`'s own
+  header comment is a leftover (literally says "Lookup tables," copy-pasted from elsewhere) that
+  was deliberately left alone rather than "fixed," since it's already applied and a versioned
+  migration's content changing after the fact breaks Flyway's checksum validation for anyone who
+  already ran it. Real documentation went into a new repeatable migration instead, reusing
+  `utils`'s existing extended-property procedures — also the first use of those procedures outside
+  the `els` schema, confirming nothing about them was accidentally `els`-specific.
 - **Diff-to-migration translation is deliberately manual, not generated.** The schema-change workflow (regenerate `wip/els_full_schema.sql`, diff it against `current/els_full_schema.sql`, hand-write the resulting versioned migration, deploy and validate it, then promote `wip` to `current`) stops short of generating the migration itself. `generate-full-schema` only ever produces a full from-scratch `CREATE TABLE` script; it has no concept of "existing table, altered" versus "new table," so it can't emit `ALTER TABLE` statements even in principle. A real diff-to-DDL tool would be a substantially bigger undertaking than this generator was meant to be, and keeping the translation manual means a person is always the one deciding how a change gets applied to a live database, not a script guessing at it.
 
 ## How other components should use this
@@ -34,6 +58,7 @@ The SQL Server side of the fictional eLearning System: Flyway migrations, the sc
 - Seed-data import (turning `els-data-model/data/*.json` into `INSERT` statements) is explicitly out of scope for `generate-full-schema` and is still expected to be a separate tool, if it gets built. `generate-synthetic-data` (see Key decisions above) is *not* that tool, even though both live under `scripts/` and both write to the database: it never reads `els-data-model`, and it's meant for larger volumes of `--complexity`-scaled synthetic data via hand-written `.sql`, not for seeding the model's small, fixed reference rows.
 - **`els_transform`** (added 2026-08-31) reads this component's deployed `els` schema as dbt sources for its dimensional model — a read-only consumer, and the first component to build on top of `els-database` rather than alongside it. Nothing here changes to support it; dbt sources just need the schema to already exist and be reachable via the same kind of connection details `config/` already documents.
 - **`telemetry-event-generator`** (added 2026-10-02) is a second read-only consumer — it samples real `course_person`/`course_content`/`course_test`/`submission` rows to emulate client telemetry, via its own independent `config/config.json` rather than this component's. The "go through `config/` ... rather than inventing its own config mechanism" guidance two bullets up is about tooling living inside this component's own `scripts/`, not about other top-level components, which each own their connection config independently — see `telemetry-event-generator/CLAUDE.md` for the explicit reasoning.
+- **`telemetry-event-consumer`** (added 2026-10-05) is the first component to *write* into this database rather than only read from it — into the new `events` schema specifically, via its own narrowly-scoped `telemetry_consumer` login rather than `els_accountadmin`. See the new "least-privilege login" key decisions above.
 
 ## Deployment
 
@@ -44,6 +69,16 @@ The SQL Server side of the fictional eLearning System: Flyway migrations, the sc
 ## Status
 
 Folder structure and tooling scaffolded. Flyway wrapper smoke-tested (JDBC URL construction, named-instance handling, per-schema config lookup for both `utils` and `els`, an unknown-schema error listing the known ones, the mandatory `-Schema` parameter's prompt/fail behavior, and error paths for missing config/missing Flyway, all verified with a stubbed `flyway` executable). `migrations/utils` now has its first three repeatable migrations (`utils.set_extended_property`, `utils.set_table_comment`, `utils.set_column_comment`) — T-SQL syntax checked with `sqlfluff` (`--dialect tsql`), no unparsable sections; not yet run against a real SQL Server (none available in this sandbox), so live idempotency behavior is unverified beyond code review. `migrations/els` still has only the `R__placeholder.sql` no-op. No CI wired up yet.
+
+A new `events` schema was added (2026-10-02 / 2026-10-05): `V0001__initial_schema.sql` (the
+`telemetry_event` landing table, created by Karel directly rather than generated), followed by
+`V0002__telemetry_consumer_login.sql` (the `telemetry_consumer` login/user, password supplied via
+a new Flyway placeholder rather than committed) and two repeatable migrations
+(`R__01_grant_telemetry_consumer.sql` for the least-privilege `INSERT` grant,
+`R__02_set_telemetry_event_comments.sql` documenting the table via `utils`'s comment procedures).
+None of this has been run against a live SQL Server from this sandbox — in particular, whether
+`els_accountadmin` actually has sufficient server permissions for `CREATE LOGIN` is unverified;
+see the new "least-privilege login" key decisions above for the fallback if it doesn't.
 
 `generate-full-schema` was tested directly, not just written: ran twice back-to-back against the real Campus/Course model and confirmed byte-identical (MD5-matched) output; confirmed `--check` correctly reports "up to date" on a clean model and "drift" against a changed one; added a synthetic third entity (`Classroom`, alphabetically between `Campus` and `Course`) and confirmed it was inserted between them while the `Campus` and `Course` `CREATE TABLE` statements stayed character-for-character identical to before; and confirmed clear error messages for a missing model directory and an entity failing schema validation. After switching its comment output to call the `utils` procedures, the full regression suite (byte-identical re-run, `--check`, synthetic-entity insertion including a quote-escaping check) was re-run against the new output, not just eyeballed. Re-run once more when `els-data-model` added `Campus.uuid` and the real (not synthetic) `CourseType` entity — now three tables in the generated output, `CourseType` landing after `Course` alphabetically.
 

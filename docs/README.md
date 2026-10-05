@@ -13,6 +13,7 @@ Each component keeps its own reference documentation in its own `README.md` — 
 | eLearning System Transformation | [`els-transform.md`](els-transform.md) |
 | Telemetry Event Generator | [`els-telemetry-event-generator.md`](els-telemetry-event-generator.md) |
 | Kafka | [`kafka.md`](kafka.md) |
+| Telemetry Event Consumer | [`telemetry-event-consumer.md`](telemetry-event-consumer.md) |
 
 ## Cheat sheet
 
@@ -48,16 +49,39 @@ python .\els-database\scripts\generate-synthetic-data\generate_synthetic_data.py
 dbt build --project-dir els_transform
 ```
 
-### Generate telemetry events (publishes to Kafka by default)
-
-```
-python .\telemetry-event-generator\generate_telemetry_events.py --campus-uuid <campus-uuid> --session-count 20 --session-length 50
-```
-
-Add `--sink both` to also keep a local NDJSON copy, or `--sink file` to skip Kafka entirely.
-
 ### Start Kafka (broker + topic + web UI)
 
 ```
 docker compose -f .\kafka\docker-compose.yml up -d
 ```
+
+### Check Kafka messages (UI):
+**http://localhost:8080**
+
+### Stop Kafka (broker + topic + web UI)
+```
+docker compose -f .\kafka\docker-compose.yml down
+```
+
+### Generate telemetry events (publishes to Kafka by default)
+
+```
+python .\telemetry-event-generator\generate_telemetry_events.py --campus-uuid "A2EE3091-49C4-47EE-BC42-46EC3E02F262" --session-count 5 --session-length 10
+```
+
+Add `--sink both` to also keep a local NDJSON copy, or `--sink file` to skip Kafka entirely.
+
+
+### Deploy the events schema, this grants access rights to pre-existing user
+
+```
+.\els-database\scripts\Invoke-ElsMigration.ps1 -Schema events
+```
+
+### Start the telemetry consumer (reads Kafka, writes into `events.telemetry_event`)
+
+```
+docker compose -f .\telemetry-event-consumer\docker-compose.yml up -d --build
+```
+
+Requires `kafka` already running (joins its Docker network) and `telemetry-event-consumer/config/config.json` filled in first.

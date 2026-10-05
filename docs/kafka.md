@@ -5,9 +5,11 @@
 A single-node Apache Kafka broker (KRaft mode, no ZooKeeper) plus `kafka-ui`, a web UI for
 inspecting topics and messages, run via Docker Compose. There is no application code here — the
 whole component is `docker-compose.yml` plus documentation. It's the middle of a three-part
-pipeline: [`telemetry-event-generator`](../telemetry-event-generator/) → **this** → a future
-consumer writing into a new `els-database` table. Only the broker itself exists so far; nothing
-produces to it yet and nothing consumes from it yet.
+pipeline: [`telemetry-event-generator`](../telemetry-event-generator/) → **this** →
+[`telemetry-event-consumer`](../telemetry-event-consumer/), which writes into a new
+`els-database` table. The pipeline is now end-to-end, at least in design — see
+[`telemetry-event-consumer`'s review](telemetry-event-consumer.md) for what's actually been
+verified live.
 
 ## Key decisions
 
@@ -48,14 +50,21 @@ produces to it yet and nothing consumes from it yet.
   instead gives real persistence without weakening the image's non-root hardening. A `user:
   "root:root"` override was tried first, confirmed working, and deliberately replaced by this fix
   once the actual cause was understood — see `kafka/CLAUDE.md` for the full diagnosis.
+- **The default Docker network got an explicit, stable name (`els-kafka-net`), added once a
+  second component needed to join it.** Compose otherwise derives the network name from this
+  project's name, which defaults to this folder's own name (`kafka` → `kafka_default`) — fine
+  while nothing else depended on it, but a name that would silently move if this folder were ever
+  renamed or Compose were invoked with a different project name. `telemetry-event-consumer`'s own
+  `docker-compose.yml` needs a name that won't shift for reasons that have nothing to do with
+  Kafka, so the network was named explicitly rather than left implicit.
 
 ## How other components should use this
 
 - `telemetry-event-generator` is this component's producer, by default — it publishes to the
   `telemetry-events` topic, keyed by `session_id`, unless run with `--sink file`.
-- A future, not-yet-built component is expected to consume from `telemetry-events` and write into
-  a new table in `els-database`.
-- Nothing else in the repo depends on this component today.
+- `telemetry-event-consumer` is this component's consumer — it reads `telemetry-events` and
+  writes into `els-database`'s new `events` schema, joining this component's Docker network
+  (`els-kafka-net`) from its own separate `docker-compose.yml`.
 
 ## Status
 

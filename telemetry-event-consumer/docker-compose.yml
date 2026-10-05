@@ -1,0 +1,22 @@
+services:
+  consumer:
+    build: .
+    container_name: els-telemetry-consumer
+    restart: unless-stopped
+    volumes:
+      # Read-only bind mount, not baked into the image (see Dockerfile) -- copy
+      # config/config.template.json to config/config.json and fill in real values first.
+      - ./config/config.json:/app/config/config.json:ro
+    networks:
+      - kafka-net
+
+networks:
+  # External: true means "join a network created elsewhere," not "create one here" -- this is
+  # kafka's docker-compose.yml's own default network, given a stable explicit name there
+  # specifically so a separate component's compose file (this one) can reference it without
+  # depending on how kafka's project name happens to resolve. Bring kafka's stack up first
+  # (`docker compose up -d` in ../kafka) -- this network has to already exist before `docker
+  # compose up` here can join it.
+  kafka-net:
+    name: els-kafka-net
+    external: true

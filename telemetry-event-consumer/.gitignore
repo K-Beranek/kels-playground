@@ -1,0 +1,8 @@
+# This tool only ever reads from Kafka and writes to SQL Server -- there's no local output to
+# ignore beyond the usual Python housekeeping. See config/.gitignore for the secrets rule.
+
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/

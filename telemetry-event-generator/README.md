@@ -52,6 +52,28 @@ If you only ever run this with `--sink file`, nothing Kafka-related in config or
 machine is actually used at runtime — but `kafka-python` still needs to be installed, since the
 import happens unconditionally; see `CLAUDE.md` for why that wasn't made optional.
 
+## Running tests
+
+The test suite needs neither a live SQL Server nor a live Kafka broker — it runs against a fake
+in-memory database cursor and a fake in-memory Kafka producer, so it works offline, anywhere:
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+`requirements-dev.txt` adds `pytest` on top of this component's normal runtime dependencies
+(`-r requirements.txt`) — a separate file so a normal run of the script itself never needs a
+test framework installed. `pytest.ini` points discovery at `tests/`; `tests/conftest.py` makes
+`generate_telemetry_events.py` importable and stubs `pyodbc` if the real package can't be
+imported (most dev machines and CI runners won't have a Microsoft ODBC driver installed — see
+"Setup" above).
+
+What this suite does **not** cover, because nothing short of a real SQL Server and a real Kafka
+broker can: whether a real database connection or a real message delivery actually succeeds.
+See `CLAUDE.md`'s "Known gaps" for exactly what has and hasn't been verified live, by hand,
+against this project's `els-database`/`kafka` components.
+
 ## Usage
 
 ```bash

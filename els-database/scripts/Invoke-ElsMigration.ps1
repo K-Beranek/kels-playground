@@ -30,6 +30,16 @@
 .PARAMETER FlywayCommand
     Which Flyway command to run. Defaults to "migrate".
 
+.PARAMETER Placeholders
+    Optional hashtable of extra Flyway placeholder values, substituted into any migration SQL that
+    references ${name}. This is how a value that must never be committed (e.g. a new login's
+    password) gets into a migration file without hardcoding it: the migration file references
+    ${telemetry_consumer_password}, and the real value is supplied here, on the command line, at
+    the moment the migration actually runs -- never written to disk anywhere in the repo. Flyway
+    itself resolves ${...} placeholders in migration SQL; this parameter just forwards each entry
+    as its own -placeholders.<name>=<value> argument. Empty by default -- most migrations need no
+    placeholders at all.
+
 .EXAMPLE
     ./scripts/Invoke-ElsMigration.ps1 -Schema utils
     Runs `flyway migrate` against the "utils" schema's migrations.
@@ -46,6 +56,11 @@
 .EXAMPLE
     ./scripts/Invoke-ElsMigration.ps1 -Schema els -ConfigPath ./config/config.local.json
     Uses an alternate config file, e.g. for a second local environment.
+
+.EXAMPLE
+    ./scripts/Invoke-ElsMigration.ps1 -Schema events -Placeholders @{ telemetry_consumer_password = "..." }
+    Runs a migration under "events" that references ${telemetry_consumer_password}, supplying the
+    real value only for this one invocation -- it is never written to a file.
 #>
 
 [CmdletBinding()]
@@ -56,7 +71,9 @@ param(
     [string]$ConfigPath = (Join-Path $PSScriptRoot "..\config\config.json"),
 
     [ValidateSet("migrate", "info", "validate", "repair", "baseline")]
-    [string]$FlywayCommand = "migrate"
+    [string]$FlywayCommand = "migrate",
+
+    [hashtable]$Placeholders = @{}
 )
 
 $ErrorActionPreference = "Stop"
@@ -94,13 +111,19 @@ $migrationsPath = Resolve-Path (Join-Path $PSScriptRoot $schemaConfig.migrations
 
 Write-Host "Running 'flyway $FlywayCommand' against database '$($sqlServer.database)' on $serverPart (schema: $Schema)"
 
-& flyway $FlywayCommand `
-    "-url=$jdbcUrl" `
-<#    "-X" #> `
-    "-user=$($auth.user)" `
-    "-password=$($auth.password)" `
-    "-schemas=$Schema" `
+$flywayArgs = @(
+    "-url=$jdbcUrl"
+    "-user=$($auth.user)"
+    "-password=$($auth.password)"
+    "-schemas=$Schema"
     "-locations=filesystem:$migrationsPath"
+)
+
+foreach ($name in $Placeholders.Keys) {
+    $flywayArgs += "-placeholders.$name=$($Placeholders[$name])"
+}
+
+& flyway $FlywayCommand @flywayArgs
 
 if ($LASTEXITCODE -ne 0) {
     throw "flyway $FlywayCommand failed with exit code $LASTEXITCODE"

@@ -17,6 +17,7 @@ Each component lives in its own top-level folder with its own `README.md`, `CLAU
 | eLearning System Transformation | [`els_transform`](els_transform/) | dbt project transforming the raw `els` schema into a dimensional model (dimension/fact tables) for reporting. | in progress |
 | Telemetry Event Generator | [`telemetry-event-generator`](telemetry-event-generator/) | Emulates a client app sending telemetry events (session/login/activity/logout) as a student works through the system, reading real data from `els-database`. Publishes to Kafka by default (`--sink file`/`both` also available). First piece of a generator → Kafka → SQL Server pipeline. | in progress |
 | Kafka | [`kafka`](kafka/) | Single-node Apache Kafka broker (KRaft mode) plus a web UI, run via Docker Compose. Middle piece of the generator → Kafka → SQL Server pipeline, confirmed working end-to-end. | in progress |
+| Telemetry Event Consumer | [`telemetry-event-consumer`](telemetry-event-consumer/) | Reads the Kafka topic above and writes each event, raw, into a new `els-database` landing table. Runs as a continuous process in Docker. Last piece of the generator → Kafka → SQL Server pipeline, now complete in design. | in progress |
 
 See [`docs/README.md`](docs/README.md) for more on how components are documented and how they're meant to fit together.
 
